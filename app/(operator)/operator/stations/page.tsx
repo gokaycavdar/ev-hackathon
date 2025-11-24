@@ -116,11 +116,11 @@ export default function StationsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-8">
+    <div className="min-h-screen bg-slate-800 text-white p-8">
       <header className="flex items-center justify-between mb-10">
         <div>
           <h1 className="text-3xl font-bold text-white">İstasyon Yönetimi</h1>
-          <p className="text-sm text-slate-400 mt-2">
+          <p className="text-sm text-slate-200 mt-2">
             Şarj istasyonlarınızı ekleyin, düzenleyin ve yönetin.
           </p>
         </div>
@@ -135,57 +135,57 @@ export default function StationsPage() {
       </header>
 
       {isCreating && (
-        <Card className="p-6 mb-8 border-purple-500/30 bg-slate-900/80">
+        <Card className="p-6 mb-8 border-purple-500/30 bg-slate-700/80">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold text-white">{editingId ? "İstasyonu Düzenle" : "Yeni İstasyon Ekle"}</h2>
-            <button onClick={() => setIsCreating(false)} className="text-slate-400 hover:text-white">
+            <button onClick={() => setIsCreating(false)} className="text-slate-300 hover:text-white">
               <X className="h-5 w-5" />
             </button>
           </div>
           
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-xs text-slate-400">İstasyon Adı</label>
+              <label className="text-xs text-slate-200">İstasyon Adı</label>
               <input 
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
+                className="w-full bg-slate-600 border border-slate-500 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
                 value={formData.name}
                 onChange={e => setFormData({...formData, name: e.target.value})}
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs text-slate-400">Fiyat (₺/kWh)</label>
+              <label className="text-xs text-slate-200">Fiyat (₺/kWh)</label>
               <input 
                 type="number"
                 step="0.1"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
+                className="w-full bg-slate-600 border border-slate-500 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
                 value={formData.price}
                 onChange={e => setFormData({...formData, price: Number(e.target.value)})}
               />
             </div>
             <div className="space-y-2 sm:col-span-2">
-              <label className="text-xs text-slate-400">Adres</label>
+              <label className="text-xs text-slate-200">Adres</label>
               <input 
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
+                className="w-full bg-slate-600 border border-slate-500 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
                 value={formData.address || ""}
                 onChange={e => setFormData({...formData, address: e.target.value})}
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs text-slate-400">Enlem (Latitude)</label>
+              <label className="text-xs text-slate-200">Enlem (Latitude)</label>
               <input 
                 type="number"
                 step="0.0001"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
+                className="w-full bg-slate-600 border border-slate-500 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
                 value={formData.lat}
                 onChange={e => setFormData({...formData, lat: Number(e.target.value)})}
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs text-slate-400">Boylam (Longitude)</label>
+              <label className="text-xs text-slate-200">Boylam (Longitude)</label>
               <input 
                 type="number"
                 step="0.0001"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
+                className="w-full bg-slate-600 border border-slate-500 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
                 value={formData.lng}
                 onChange={e => setFormData({...formData, lng: Number(e.target.value)})}
               />
@@ -195,7 +195,7 @@ export default function StationsPage() {
           <div className="mt-6 flex justify-end gap-3">
             <button 
               onClick={() => setIsCreating(false)}
-              className="px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-800 transition"
+              className="px-4 py-2 rounded-lg text-slate-200 hover:bg-slate-600 transition"
             >
               İptal
             </button>
@@ -210,26 +210,26 @@ export default function StationsPage() {
       )}
 
       {isLoading ? (
-        <div className="text-center py-20 text-slate-400">Yükleniyor...</div>
+        <div className="text-center py-20 text-slate-300">Yükleniyor...</div>
       ) : stations.length === 0 ? (
-        <div className="text-center py-20 text-slate-400 bg-slate-900/30 rounded-3xl border border-slate-800 border-dashed">
+        <div className="text-center py-20 text-slate-300 bg-slate-700/30 rounded-3xl border border-slate-600 border-dashed">
           <Zap className="h-10 w-10 mx-auto mb-4 opacity-20" />
           <p>Henüz istasyon eklenmemiş.</p>
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {stations.map((station) => (
-            <Card key={station.id} className="p-6 border-slate-800 bg-slate-900/60 hover:border-purple-500/30 transition group relative">
+            <Card key={station.id} className="p-6 border-slate-600 bg-slate-700/60 hover:border-purple-500/30 transition group relative">
               <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition">
                 <button 
                   onClick={() => handleEdit(station)}
-                  className="p-2 rounded-lg bg-slate-800 hover:bg-blue-600/20 hover:text-blue-400 text-slate-400 transition"
+                  className="p-2 rounded-lg bg-slate-600 hover:bg-blue-600/20 hover:text-blue-400 text-slate-300 transition"
                 >
                   <Edit2 className="h-4 w-4" />
                 </button>
                 <button 
                   onClick={() => handleDelete(station.id)}
-                  className="p-2 rounded-lg bg-slate-800 hover:bg-red-600/20 hover:text-red-400 text-slate-400 transition"
+                  className="p-2 rounded-lg bg-slate-600 hover:bg-red-600/20 hover:text-red-400 text-slate-300 transition"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -240,8 +240,8 @@ export default function StationsPage() {
                   <Zap className="h-6 w-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-200">{station.name}</h3>
-                  <div className="flex items-center gap-1 text-xs text-slate-500 mt-1">
+                  <h3 className="text-lg font-semibold text-white">{station.name}</h3>
+                  <div className="flex items-center gap-1 text-xs text-slate-300 mt-1">
                     <MapPin className="h-3 w-3" />
                     <span className="truncate max-w-[200px]">
                       {station.address || 
@@ -253,15 +253,15 @@ export default function StationsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-800/50">
+              <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-600/50">
                 <div>
-                  <div className="text-xs text-slate-500 mb-1">Birim Fiyat</div>
+                  <div className="text-xs text-slate-300 mb-1">Birim Fiyat</div>
                   <div className="text-lg font-bold text-white flex items-center gap-1">
-                    {station.price} <span className="text-xs font-normal text-slate-400">₺/kWh</span>
+                    {station.price} <span className="text-xs font-normal text-slate-300">₺/kWh</span>
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs text-slate-500 mb-1">Toplam Gelir</div>
+                  <div className="text-xs text-slate-300 mb-1">Toplam Gelir</div>
                   <div className="text-lg font-bold text-green-400 flex items-center gap-1">
                     {station.revenue || 0} <span className="text-xs font-normal text-green-400/70">₺</span>
                   </div>

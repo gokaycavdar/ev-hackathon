@@ -132,11 +132,11 @@ export default function CampaignsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-8">
+    <div className="min-h-screen bg-slate-800 text-white p-8">
       <header className="flex items-center justify-between mb-10">
         <div>
           <h1 className="text-3xl font-bold text-white">Kampanya Yönetimi</h1>
-          <p className="text-sm text-slate-400 mt-2">
+          <p className="text-sm text-slate-200 mt-2">
             Sürücü davranışlarını yönlendirmek için dinamik kampanyalar oluşturun.
           </p>
         </div>
@@ -151,27 +151,27 @@ export default function CampaignsPage() {
       </header>
 
       {isCreating && (
-        <Card className="p-6 mb-8 border-purple-500/30 bg-slate-900/80">
+        <Card className="p-6 mb-8 border-purple-500/30 bg-slate-700/80">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold text-white">{editingId ? "Kampanyayı Düzenle" : "Yeni Kampanya Oluştur"}</h2>
-            <button onClick={() => setIsCreating(false)} className="text-slate-400 hover:text-white">
+            <button onClick={() => setIsCreating(false)} className="text-slate-200 hover:text-white">
               <X className="h-5 w-5" />
             </button>
           </div>
           
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-xs text-slate-400">Başlık</label>
+              <label className="text-xs text-slate-200">Başlık</label>
               <input 
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
+                className="w-full bg-slate-600 border border-slate-500 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
                 value={formData.title}
                 onChange={e => setFormData({...formData, title: e.target.value})}
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs text-slate-400">Hedef İstasyon (Opsiyonel)</label>
+              <label className="text-xs text-slate-200">Hedef İstasyon (Opsiyonel)</label>
               <select 
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
+                className="w-full bg-slate-600 border border-slate-500 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
                 value={formData.stationId ?? ""}
                 onChange={e => setFormData({...formData, stationId: e.target.value ? Number(e.target.value) : null})}
               >
@@ -182,45 +182,45 @@ export default function CampaignsPage() {
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-xs text-slate-400">Ekstra Coin Ödülü</label>
+              <label className="text-xs text-slate-200">Ekstra Coin Ödülü</label>
               <input 
                 type="number"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
+                className="w-full bg-slate-600 border border-slate-500 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
                 value={formData.coinReward}
                 onChange={e => setFormData({...formData, coinReward: Number(e.target.value)})}
               />
             </div>
             <div className="space-y-2 sm:col-span-2">
-              <label className="text-xs text-slate-400">Açıklama</label>
+              <label className="text-xs text-slate-200">Açıklama</label>
               <textarea 
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
+                className="w-full bg-slate-600 border border-slate-500 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
                 rows={2}
                 value={formData.description}
                 onChange={e => setFormData({...formData, description: e.target.value})}
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs text-slate-400">İndirim / Avantaj</label>
+              <label className="text-xs text-slate-200">İndirim / Avantaj</label>
               <input 
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
+                className="w-full bg-slate-600 border border-slate-500 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
                 placeholder="%20 İndirim"
                 value={formData.discount}
                 onChange={e => setFormData({...formData, discount: e.target.value})}
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs text-slate-400">Bitiş Tarihi</label>
+              <label className="text-xs text-slate-200">Bitiş Tarihi</label>
               <input 
                 type="date"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
+                className="w-full bg-slate-600 border border-slate-500 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
                 value={formData.endDate ?? ""}
                 onChange={e => setFormData({...formData, endDate: e.target.value})}
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs text-slate-400">Durum</label>
+              <label className="text-xs text-slate-200">Durum</label>
               <select 
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
+                className="w-full bg-slate-600 border border-slate-500 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
                 value={formData.status}
                 onChange={e => setFormData({...formData, status: e.target.value as any})}
               >
@@ -234,7 +234,7 @@ export default function CampaignsPage() {
           <div className="mt-6 flex justify-end gap-3">
             <button 
               onClick={() => setIsCreating(false)}
-              className="px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-800 transition"
+              className="px-4 py-2 rounded-lg text-slate-200 hover:bg-slate-600 transition"
             >
               İptal
             </button>
@@ -249,26 +249,26 @@ export default function CampaignsPage() {
       )}
 
       {isLoading ? (
-        <div className="text-center py-20 text-slate-400">Yükleniyor...</div>
+        <div className="text-center py-20 text-slate-200">Yükleniyor...</div>
       ) : campaigns.length === 0 ? (
-        <div className="text-center py-20 text-slate-400 bg-slate-900/30 rounded-3xl border border-slate-800 border-dashed">
+        <div className="text-center py-20 text-slate-200 bg-slate-700/30 rounded-3xl border border-slate-600 border-dashed">
           <Megaphone className="h-10 w-10 mx-auto mb-4 opacity-20" />
           <p>Henüz kampanya oluşturulmamış.</p>
         </div>
       ) : (
         <div className="grid gap-6">
           {campaigns.map((campaign) => (
-            <Card key={campaign.id} className="p-6 border-slate-800 bg-slate-900/60 hover:border-purple-500/30 transition group relative">
+            <Card key={campaign.id} className="p-6 border-slate-600 bg-slate-700/60 hover:border-purple-500/30 transition group relative">
               <div className="absolute top-6 right-6 flex gap-2 opacity-0 group-hover:opacity-100 transition">
                 <button 
                   onClick={() => handleEdit(campaign)}
-                  className="p-2 rounded-lg bg-slate-800 hover:bg-blue-600/20 hover:text-blue-400 text-slate-400 transition"
+                  className="p-2 rounded-lg bg-slate-600 hover:bg-blue-600/20 hover:text-blue-400 text-slate-200 transition"
                 >
                   <Edit2 className="h-4 w-4" />
                 </button>
                 <button 
                   onClick={() => handleDelete(campaign.id)}
-                  className="p-2 rounded-lg bg-slate-800 hover:bg-red-600/20 hover:text-red-400 text-slate-400 transition"
+                  className="p-2 rounded-lg bg-slate-600 hover:bg-red-600/20 hover:text-red-400 text-slate-200 transition"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -276,23 +276,23 @@ export default function CampaignsPage() {
 
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="flex items-start gap-4">
-                  <div className={`p-3 rounded-xl ${campaign.status === 'ACTIVE' ? 'bg-green-500/10 text-green-400' : 'bg-slate-800 text-slate-400'}`}>
+                  <div className={`p-3 rounded-xl ${campaign.status === 'ACTIVE' ? 'bg-green-500/10 text-green-400' : 'bg-slate-600 text-slate-200'}`}>
                     <Megaphone className="h-6 w-6" />
                   </div>
                   <div>
                     <div className="flex items-center gap-3">
-                      <h3 className="text-lg font-semibold text-slate-200">{campaign.title}</h3>
+                      <h3 className="text-lg font-semibold text-white">{campaign.title}</h3>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide ${
                         campaign.status === 'ACTIVE' 
                           ? 'bg-green-500/15 text-green-400 border border-green-500/20' 
-                          : 'bg-slate-700 text-slate-300 border border-slate-600'
+                          : 'bg-slate-500 text-slate-200 border border-slate-400'
                       }`}>
                         {campaign.status === 'ACTIVE' ? 'Aktif' : campaign.status === 'DRAFT' ? 'Taslak' : 'Bitti'}
                       </span>
                     </div>
-                    <p className="text-slate-400 text-sm mt-1 max-w-xl">{campaign.description}</p>
+                    <p className="text-slate-200 text-sm mt-1 max-w-xl">{campaign.description}</p>
                     
-                    <div className="flex items-center gap-4 mt-4 text-xs text-slate-500">
+                    <div className="flex items-center gap-4 mt-4 text-xs text-slate-300">
                       <span className="flex items-center gap-1.5">
                         <Users className="h-3.5 w-3.5" /> {campaign.station ? campaign.station.name : campaign.target || "Tüm İstasyonlar"}
                       </span>
@@ -300,7 +300,7 @@ export default function CampaignsPage() {
                         <Calendar className="h-3.5 w-3.5" /> Bitiş: {campaign.endDate ? new Date(campaign.endDate).toLocaleDateString('tr-TR') : '—'}
                       </span>
                       {campaign.coinReward && campaign.coinReward > 0 && (
-                        <span className="flex items-center gap-1.5 text-yellow-500/80">
+                        <span className="flex items-center gap-1.5 text-yellow-400/80">
                           + {campaign.coinReward} Coin
                         </span>
                       )}
@@ -310,7 +310,7 @@ export default function CampaignsPage() {
 
                 <div className="flex items-center gap-6 pl-14 md:pl-0">
                   <div className="text-right">
-                    <div className="text-xs text-slate-500 uppercase tracking-wider font-medium">Avantaj</div>
+                    <div className="text-xs text-slate-300 uppercase tracking-wider font-medium">Avantaj</div>
                     <div className="text-xl font-bold text-purple-300">{campaign.discount}</div>
                   </div>
                 </div>

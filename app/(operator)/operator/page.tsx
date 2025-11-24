@@ -105,13 +105,13 @@ export default function OperatorDashboardPage() {
   return (
     <div className="min-h-full text-white">
       <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-purple-900/30 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-700 to-purple-900/30 pointer-events-none" />
         <div className="relative z-10 mx-auto flex max-w-7xl flex-col gap-10 px-6 py-12">
           <header className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-xs uppercase tracking-[0.3rem] text-purple-300">Operator Command Center</p>
               <h1 className="mt-3 text-3xl font-semibold sm:text-4xl">Zorlu Enerji Kontrol Paneli</h1>
-              <p className="mt-2 max-w-2xl text-sm text-slate-300">
+              <p className="mt-2 max-w-2xl text-sm text-slate-200">
                 Gelir akışınızı, yük dengesini ve yeşil slot performansınızı gerçek zamanlı izleyin. Hackathon zamanı,
                 hızla aksiyon alın.
               </p>
@@ -125,7 +125,7 @@ export default function OperatorDashboardPage() {
           </header>
 
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center gap-3 py-24 text-slate-300">
+            <div className="flex flex-col items-center justify-center gap-3 py-24 text-slate-200">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-purple-500 border-t-transparent" />
               <p>Panonuz yükleniyor...</p>
             </div>
@@ -139,32 +139,32 @@ export default function OperatorDashboardPage() {
                 {cards.map((card) => (
                   <div
                     key={card.title}
-                    className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-lg transition hover:border-purple-400/40"
+                    className="rounded-3xl border border-slate-600 bg-slate-700/70 p-6 shadow-lg transition hover:border-purple-400/40"
                   >
-                    <div className="flex items-center justify-between text-xs text-slate-400">
+                    <div className="flex items-center justify-between text-xs text-slate-200">
                       <span>{card.title}</span>
                       <card.icon className={`h-5 w-5 ${card.accent}`} />
                     </div>
                     <p className="mt-5 text-3xl font-semibold text-white">{card.value}</p>
-                    <p className="mt-2 text-xs text-slate-400">Son 24 saatlik performans</p>
+                    <p className="mt-2 text-xs text-slate-200">Son 24 saatlik performans</p>
                   </div>
                 ))}
               </div>
 
-              <div className="rounded-3xl border border-slate-800 bg-slate-900/70 shadow-xl">
-                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 px-6 py-6">
+              <div className="rounded-3xl border border-slate-600 bg-slate-700/70 shadow-xl">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-600 px-6 py-6">
                   <div>
                     <h2 className="text-xl font-semibold text-white">İstasyon Durumları</h2>
-                    <p className="text-xs text-slate-400">Green slot oranı ve yük yoğunluğu simulasyona dayalıdır.</p>
+                    <p className="text-xs text-slate-200">Green slot oranı ve yük yoğunluğu simulasyona dayalıdır.</p>
                   </div>
-                  <span className="rounded-full bg-slate-800 px-4 py-1 text-xs text-slate-300">
+                  <span className="rounded-full bg-slate-600 px-4 py-1 text-xs text-slate-200">
                     {data.stations.length} istasyon yönetiliyor
                   </span>
                 </div>
 
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[720px] text-left text-sm text-slate-200">
-                    <thead className="bg-slate-900/60 text-xs uppercase tracking-widest text-slate-400">
+                    <thead className="bg-slate-700/60 text-xs uppercase tracking-widest text-slate-200">
                       <tr>
                         <th className="px-6 py-4">İstasyon</th>
                         <th className="px-6 py-4">Yük</th>
@@ -173,7 +173,7 @@ export default function OperatorDashboardPage() {
                         <th className="px-6 py-4">Durum</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/80">
+                    <tbody className="divide-y divide-slate-600/80">
                       {data.stations.map((station) => {
                         const statusColor =
                           station.mockStatus === "GREEN"
@@ -183,14 +183,14 @@ export default function OperatorDashboardPage() {
                             : "bg-red-500/15 text-red-300";
 
                         return (
-                          <tr key={station.id} className="hover:bg-slate-900/60">
+                          <tr key={station.id} className="hover:bg-slate-600/60">
                             <td className="px-6 py-4">
                               <div className="font-semibold text-white">{station.name}</div>
-                              <div className="text-xs text-slate-400">#{station.id.toString().padStart(3, "0")}</div>
+                              <div className="text-xs text-slate-200">#{station.id.toString().padStart(3, "0")}</div>
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
-                                <div className="h-2 w-28 rounded-full bg-slate-800">
+                                <div className="h-2 w-28 rounded-full bg-slate-600">
                                   <div
                                     className={`h-full rounded-full ${
                                       station.mockStatus === "RED"
@@ -202,11 +202,11 @@ export default function OperatorDashboardPage() {
                                     style={{ width: `${station.mockLoad}%` }}
                                   />
                                 </div>
-                                <span className="text-xs text-slate-300">%{station.mockLoad}</span>
+                                <span className="text-xs text-slate-200">%{station.mockLoad}</span>
                               </div>
                             </td>
                             <td className="px-6 py-4 font-mono">{station.price.toFixed(2)} ₺</td>
-                            <td className="px-6 py-4 text-xs text-slate-300">
+                            <td className="px-6 py-4 text-xs text-slate-200">
                               {station.greenReservationCount} yeşil / {station.reservationCount} toplam
                             </td>
                             <td className="px-6 py-4">

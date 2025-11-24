@@ -195,27 +195,27 @@ export default function DriverDashboard() {
   }, [selectedStation, stations]);
 
   return (
-    <div className="relative min-h-screen bg-slate-900">
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-950 to-blue-900/40" />
+    <div className="relative min-h-screen bg-slate-700">
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-700 via-slate-800 to-blue-900/40" />
       <div className="relative z-10 h-screen w-full">
         <Map stations={stations} onSelect={handleStationSelect} />
       </div>
 
       {selectedStation ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm">
-          <div className="relative flex w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-slate-700 bg-slate-900 text-white shadow-2xl">
-            <div className="flex items-start justify-between gap-4 border-b border-slate-800 bg-slate-900/80 px-6 py-5">
+          <div className="relative flex w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-slate-500 bg-slate-700 text-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-600 bg-slate-700/80 px-6 py-5">
               <div>
                 <p className="text-xs uppercase tracking-widest text-blue-400">Smart Slot Finder</p>
                 <h2 className="mt-1 flex items-center gap-2 text-2xl font-semibold text-white">
                   <Zap className="h-5 w-5 text-yellow-400" /> {modalTitle}
                 </h2>
-                <p className="mt-1 text-sm text-slate-400">
+                <p className="mt-1 text-sm text-slate-200">
                   Yoğunluğu düşük saatleri seçerek daha fazla coin kazan.
                 </p>
               </div>
               <button
-                className="rounded-full border border-slate-700 p-2 text-slate-200 transition hover:border-slate-500 hover:text-white"
+                className="rounded-full border border-slate-500 p-2 text-slate-200 transition hover:border-slate-400 hover:text-white"
                 onClick={() => setSelectedStation(null)}
                 type="button"
               >
@@ -235,7 +235,7 @@ export default function DriverDashboard() {
                     {slots.map((slot) => {
                       const style = slot.isGreen
                         ? "border-green-400/80 bg-gradient-to-br from-green-500/15 to-emerald-600/10 hover:from-green-500/25 hover:to-emerald-600/20 focus-visible:outline-green-400"
-                        : "border-slate-700/80 bg-slate-800/60 hover:border-slate-500 focus-visible:outline-slate-400";
+                        : "border-slate-500/80 bg-slate-600/60 hover:border-slate-400 focus-visible:outline-slate-400";
                       return (
                         <button
                           key={slot.hour}
@@ -257,22 +257,22 @@ export default function DriverDashboard() {
                           ) : null}
 
                           <div className="flex items-center justify-between">
-                            <div className="text-sm font-semibold text-slate-200 font-mono">{slot.label}</div>
-                            <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                            <div className="text-sm font-semibold text-slate-100 font-mono">{slot.label}</div>
+                            <div className="flex items-center gap-1 text-[10px] text-slate-200">
                               <span
                                 className={`inline-block h-2 w-2 rounded-full ${
-                                  slot.isGreen ? "bg-green-400 shadow-[0_0_0_3px_rgba(74,222,128,.35)]" : "bg-slate-500"
+                                  slot.isGreen ? "bg-green-400 shadow-[0_0_0_3px_rgba(74,222,128,.35)]" : "bg-slate-400"
                                 }`}
                               />
                               %{slot.load}
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between text-xs text-slate-300">
-                            <span className="font-medium text-slate-200">{slot.price.toFixed(2)} ₺</span>
+                          <div className="flex items-center justify-between text-xs text-slate-200">
+                            <span className="font-medium text-slate-100">{slot.price.toFixed(2)} ₺</span>
                             <span
                               className={`flex items-center gap-1 font-semibold ${
-                                slot.isGreen ? "text-yellow-300" : "text-slate-400"
+                                slot.isGreen ? "text-yellow-300" : "text-slate-200"
                               }`}
                             >
                               <BatteryCharging className="h-3 w-3" /> +{slot.coins}
@@ -288,7 +288,7 @@ export default function DriverDashboard() {
                               <Leaf className="h-3 w-3" /> Düşük yük – ekstra ödül
                             </p>
                           ) : (
-                            <p className="text-[11px] text-slate-400">Standart tarife</p>
+                            <p className="text-[11px] text-slate-200">Standart tarife</p>
                           )}
                         </button>
                       );
@@ -298,12 +298,12 @@ export default function DriverDashboard() {
               </div>
 
               {recommendation && (
-                <div className="w-full lg:w-72 border-t lg:border-t-0 lg:border-l border-slate-800 bg-slate-900/50 p-6 flex flex-col gap-4">
+                <div className="w-full lg:w-72 border-t lg:border-t-0 lg:border-l border-slate-600 bg-slate-700/50 p-6 flex flex-col gap-4">
                   <div className="flex items-center gap-2 text-yellow-400 text-sm font-semibold">
                     <Zap className="h-4 w-4" />
                     Akıllı Öneri
                   </div>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-200">
                     Seçtiğin istasyon şu an yoğun. Yakınlarda daha sakin bir alternatif var:
                   </p>
                   
@@ -315,7 +315,7 @@ export default function DriverDashboard() {
                         %{recommendation.mockLoad}
                       </span>
                     </div>
-                    <div className="text-xs text-slate-300 mb-3">
+                    <div className="text-xs text-slate-200 mb-3">
                       Daha düşük yoğunluk ve bekleme süresi.
                     </div>
                     <button className="w-full py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-xs font-semibold transition">
@@ -326,7 +326,7 @@ export default function DriverDashboard() {
               )}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-800 bg-slate-900/60 px-6 py-4 text-xs text-slate-400">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-600 bg-slate-700/60 px-6 py-4 text-xs text-slate-200">
               <span>Yeşil slotlar %20 indirim ve ekstra coin kazandırır.</span>
               <span>Yüksek yük uyarısı kırmızı çerçeve ile gösterilir.</span>
             </div>
@@ -335,13 +335,13 @@ export default function DriverDashboard() {
       ) : null}
 
       {toast ? (
-        <div className="fixed bottom-6 right-6 z-50 max-w-sm rounded-2xl border border-slate-700 bg-slate-900/90 px-5 py-4 text-white shadow-lg backdrop-blur">
+        <div className="fixed bottom-6 right-6 z-50 max-w-sm rounded-2xl border border-slate-500 bg-slate-700/90 px-5 py-4 text-white shadow-lg backdrop-blur">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-white">{toast.message}</p>
-              {toast.detail ? <p className="mt-1 text-xs text-slate-300">{toast.detail}</p> : null}
+              {toast.detail ? <p className="mt-1 text-xs text-slate-200">{toast.detail}</p> : null}
             </div>
-            <button className="text-slate-400 hover:text-white" onClick={closeToast} type="button">
+            <button className="text-slate-300 hover:text-white" onClick={closeToast} type="button">
               <X className="h-4 w-4" />
             </button>
           </div>

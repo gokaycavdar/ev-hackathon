@@ -62,18 +62,18 @@ export default function AppointmentsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-900/20" />
+    <main className="min-h-screen bg-slate-800 text-white relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-700 to-blue-900/20" />
       
       <div className="relative z-10 mx-auto max-w-3xl px-6 py-12">
         <header className="flex items-center justify-between mb-10">
           <div>
             <h1 className="text-2xl font-bold text-white">Randevularım</h1>
-            <p className="text-sm text-slate-400 mt-1">Yaklaşan şarj istasyonu rezervasyonların.</p>
+            <p className="text-sm text-slate-200 mt-1">Yaklaşan şarj istasyonu rezervasyonların.</p>
           </div>
           <Link
             href="/driver"
-            className="p-2 rounded-full bg-slate-800/50 hover:bg-slate-800 transition text-slate-300 hover:text-white"
+            className="p-2 rounded-full bg-slate-700/50 hover:bg-slate-600 transition text-slate-200 hover:text-white"
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
@@ -89,11 +89,11 @@ export default function AppointmentsPage() {
           </div>
         ) : reservations.length === 0 ? (
           <div className="text-center py-20">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-900 mb-4">
-              <Calendar className="h-8 w-8 text-slate-600" />
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-700 mb-4">
+              <Calendar className="h-8 w-8 text-slate-400" />
             </div>
-            <h3 className="text-lg font-medium text-slate-300">Henüz randevun yok</h3>
-            <p className="text-slate-500 text-sm mt-2 max-w-xs mx-auto">
+            <h3 className="text-lg font-medium text-slate-200">Henüz randevun yok</h3>
+            <p className="text-slate-300 text-sm mt-2 max-w-xs mx-auto">
               Haritadan uygun bir istasyon seçip rezervasyon oluşturabilirsin.
             </p>
             <Link 
@@ -106,15 +106,15 @@ export default function AppointmentsPage() {
         ) : (
           <div className="space-y-4">
             {reservations.map((res) => (
-              <Card key={res.id} className="p-5 border-slate-800 bg-slate-900/60 hover:border-slate-700 transition group">
+              <Card key={res.id} className="p-5 border-slate-600 bg-slate-700/60 hover:border-slate-500 transition group">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-4">
                     <div className={`p-3 rounded-xl ${res.isGreen ? 'bg-green-500/10 text-green-400' : 'bg-blue-500/10 text-blue-400'}`}>
                       <Zap className="h-6 w-6" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-slate-200">{res.station.name}</h3>
-                      <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
+                      <h3 className="font-semibold text-white">{res.station.name}</h3>
+                      <div className="flex items-center gap-3 mt-2 text-xs text-slate-300">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
                           {new Date(res.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}
@@ -135,7 +135,7 @@ export default function AppointmentsPage() {
                   
                   <button
                     onClick={() => handleStartCharging(res.id)}
-                    className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-blue-600 text-slate-300 hover:text-white text-xs font-medium transition border border-slate-700 hover:border-blue-500/50"
+                    className="px-4 py-2 rounded-lg bg-slate-600 hover:bg-blue-600 text-slate-200 hover:text-white text-xs font-medium transition border border-slate-500 hover:border-blue-500/50"
                   >
                     Şarjı Başlat
                   </button>

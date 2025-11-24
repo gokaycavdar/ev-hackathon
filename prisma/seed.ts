@@ -51,7 +51,7 @@ async function main() {
       role: "DRIVER",
       coins: 150,
       xp: 500,
-      badges: { connect: [{ id: badgeNight.id }, { id: badgeEco.id }] }
+      badges: { connect: [{ id: badgeNight.id }, { id: badgeEco.id }, { id: badgeWeekend.id }, { id: badgeEarlyBird.id }] }
     }
   })
 

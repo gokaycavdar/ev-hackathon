@@ -55,7 +55,7 @@ export default function Map({ stations, onSelect, initialCenter, zoom = 12 }: Ma
   const center: LatLngExpression = initialCenter ?? [38.614, 27.405];
 
   return (
-    <div className="h-full w-full overflow-hidden rounded-3xl border border-slate-800 bg-slate-900">
+    <div className="h-full w-full overflow-hidden rounded-3xl border border-slate-700 bg-slate-800">
       <MapContainer center={center} zoom={zoom} style={{ height: "100%", width: "100%" }}>
         <TileLayer
           attribution="&copy; OpenStreetMap contributors"
