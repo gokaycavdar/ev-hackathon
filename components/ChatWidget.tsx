@@ -51,7 +51,7 @@ export default function ChatWidget() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMessage, userId: 8 }), // Mock userId (Driver)
+        body: JSON.stringify({ message: userMessage, userId: 10 }), // Mock userId (Driver)
       });
 
       if (!res.ok) throw new Error("Failed to fetch");
@@ -81,7 +81,7 @@ export default function ChatWidget() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: 8, // Mock userId (Driver)
+          userId: 10, // Mock userId (Driver)
           stationId: rec.id,
           date: new Date().toISOString(), // Today
           hour: rec.hour,

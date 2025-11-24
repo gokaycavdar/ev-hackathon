@@ -107,31 +107,6 @@ export default function SettingsPage() {
           </div>
         </Card>
 
-        <Card className="p-6 border-slate-600 bg-slate-700/60 opacity-75">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="p-3 rounded-xl bg-yellow-500/10 text-yellow-400">
-              <Bell className="h-6 w-6" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-white">Bildirimler</h2>
-              <p className="text-sm text-slate-300">Hangi durumlarda bildirim almak istediğinizi seçin.</p>
-            </div>
-          </div>
-          <div className="text-sm text-slate-400 italic">Bu özellik yakında eklenecek.</div>
-        </Card>
-
-        <Card className="p-6 border-slate-600 bg-slate-700/60 opacity-75">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="p-3 rounded-xl bg-red-500/10 text-red-400">
-              <Shield className="h-6 w-6" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-white">Güvenlik</h2>
-              <p className="text-sm text-slate-300">Şifre ve güvenlik ayarları.</p>
-            </div>
-          </div>
-          <div className="text-sm text-slate-400 italic">Bu özellik yakında eklenecek.</div>
-        </Card>
       </div>
     </div>
   );

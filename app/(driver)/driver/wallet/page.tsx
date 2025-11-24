@@ -86,8 +86,8 @@ export default function DriverWalletPage() {
 				<div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-10 px-6 py-12">
 					<header className="flex flex-wrap items-center justify-between gap-4">
 						<div>
-							<p className="text-xs uppercase tracking-widest text-green-400">Eco Rewards</p>
-							<h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">Gamification Vault</h1>
+							<p className="text-xs uppercase tracking-widest text-green-400">Rozetler ve Kazançlarım </p>
+							<h1 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">Cüzdan</h1>
 							<p className="mt-2 max-w-2xl text-sm text-slate-200">
 								Yeşil slotlardan topladığın coinler ve karbon tasarrufların burada. Devam ettikçe yeni rozetler kazan!
 							</p>

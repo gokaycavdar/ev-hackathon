@@ -109,7 +109,7 @@ export default function OperatorDashboardPage() {
         <div className="relative z-10 mx-auto flex max-w-7xl flex-col gap-10 px-6 py-12">
           <header className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.3rem] text-purple-300">Operator Command Center</p>
+              <p className="text-xs uppercase tracking-[0.3rem] text-purple-300"></p>
               <h1 className="mt-3 text-3xl font-semibold sm:text-4xl">Zorlu Enerji Kontrol Paneli</h1>
               <p className="mt-2 max-w-2xl text-sm text-slate-200">
                 Gelir akışınızı, yük dengesini ve yeşil slot performansınızı gerçek zamanlı izleyin. Hackathon zamanı,

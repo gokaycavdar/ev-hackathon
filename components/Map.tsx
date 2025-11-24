@@ -1,18 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
-import dynamic from "next/dynamic";
+import { useEffect, Fragment } from "react";
+import { MapContainer, TileLayer, Marker, Popup, Circle } from "react-leaflet";
 import type { LatLngExpression } from "leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-
-const MapContainer = dynamic(async () => (await import("react-leaflet")).MapContainer, {
-  ssr: false,
-});
-const TileLayer = dynamic(async () => (await import("react-leaflet")).TileLayer, { ssr: false });
-const Marker = dynamic(async () => (await import("react-leaflet")).Marker, { ssr: false });
-const Popup = dynamic(async () => (await import("react-leaflet")).Popup, { ssr: false });
-const Circle = dynamic(async () => (await import("react-leaflet")).Circle, { ssr: false });
 
 let iconPatched = false;
 function patchLeafletIcons() {
@@ -68,7 +60,7 @@ export default function Map({ stations, onSelect, initialCenter, zoom = 12 }: Ma
             "#22c55e"; // Green
 
           return (
-            <div key={station.id}>
+            <Fragment key={station.id}>
               <Circle
                 center={[station.lat, station.lng]}
                 pathOptions={{ 
@@ -106,7 +98,7 @@ export default function Map({ stations, onSelect, initialCenter, zoom = 12 }: Ma
                   </div>
                 </Popup>
               </Marker>
-            </div>
+            </Fragment>
           );
         })}
       </MapContainer>
