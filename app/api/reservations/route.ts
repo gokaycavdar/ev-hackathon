@@ -37,38 +37,25 @@ export async function POST(req: Request) {
 
     const co2SavedDelta = isGreen ? 2.5 : 0.5;
 
-    const [reservation, user] = await prisma.$transaction([
-      prisma.reservation.create({
-        data: {
-          userId,
-          stationId,
-          date: reservationDate,
-          hour,
-          isGreen,
-          earnedCoins,
-          status: "CONFIRMED",
-        },
-      }),
-      prisma.user.update({
-        where: { id: userId },
-        data: {
-          coins: { increment: earnedCoins },
-          co2Saved: { increment: co2SavedDelta },
-          xp: { increment: isGreen ? 150 : 60 },
-        },
-      }),
-    ]);
+    // FIX: Do not grant rewards immediately. Status is PENDING.
+    const reservation = await prisma.reservation.create({
+      data: {
+        userId,
+        stationId,
+        date: reservationDate,
+        hour,
+        isGreen,
+        earnedCoins,
+        status: "PENDING", // Changed from CONFIRMED
+      },
+    });
 
     return NextResponse.json({
       success: true,
-      message: "Rezervasyon kaydedildi",
+      message: "Rezervasyon oluşturuldu. Simülasyonu tamamlayınca ödüller kazanacaksın.",
       reservation,
-      user: {
-        id: user.id,
-        coins: user.coins,
-        co2Saved: user.co2Saved,
-        xp: user.xp,
-      },
+      // User stats are not updated yet, so we don't return new user stats or we return current ones if needed.
+      // For now, frontend shouldn't expect updated stats immediately.
     });
   } catch (error) {
     console.error("Reservation create failed", error);

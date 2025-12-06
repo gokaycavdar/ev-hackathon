@@ -106,3 +106,33 @@ export async function GET(request: Request, { params }: Params) {
 
   return NextResponse.json({ ...station, slots, activeCampaign });
 }
+
+export async function PUT(request: Request, { params }: Params) {
+  const { id } = await params;
+  const stationId = Number.parseInt(id, 10);
+
+  if (Number.isNaN(stationId)) {
+    return NextResponse.json({ error: "Geçersiz istasyon kimliği" }, { status: 400 });
+  }
+
+  try {
+    const body = await request.json();
+    const { name, latitude, longitude, address, price } = body;
+
+    const updatedStation = await prisma.station.update({
+      where: { id: stationId },
+      data: {
+        name,
+        lat: latitude,
+        lng: longitude,
+        address,
+        price,
+      },
+    });
+
+    return NextResponse.json(updatedStation);
+  } catch (error) {
+    console.error("Failed to update station", error);
+    return NextResponse.json({ error: "İstasyon güncellenemedi" }, { status: 500 });
+  }
+}

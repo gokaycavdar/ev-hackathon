@@ -29,6 +29,26 @@ export default function AppointmentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeChargingId, setActiveChargingId] = useState<number | null>(null);
 
+  const pendingReservations = reservations.filter(r => r.status === "PENDING");
+  const completedReservations = reservations.filter(r => r.status === "COMPLETED");
+
+  const loadReservations = useCallback(async () => {
+    const userId = typeof window !== "undefined" ? localStorage.getItem("ecocharge:userId") : null;
+    if (!userId) return;
+
+    try {
+      const response = await fetch(`/api/users/${userId}`);
+      if (!response.ok) throw new Error("Randevular alınamadı");
+      const data = (await response.json()) as UserPayload;
+      setReservations(data.reservations);
+    } catch (err) {
+      console.error("Appointments fetch failed", err);
+      setError("Randevular yüklenemedi.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const userId = typeof window !== "undefined" ? localStorage.getItem("ecocharge:userId") : null;
     if (!userId) {
@@ -36,29 +56,16 @@ export default function AppointmentsPage() {
       setIsLoading(false);
       return;
     }
-
-    const controller = new AbortController();
-    const loadReservations = async () => {
-      try {
-        const response = await fetch(`/api/users/${userId}`, { signal: controller.signal });
-        if (!response.ok) throw new Error("Randevular alınamadı");
-        const data = (await response.json()) as UserPayload;
-        setReservations(data.reservations);
-      } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") return;
-        console.error("Appointments fetch failed", err);
-        setError("Randevular yüklenemedi.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     loadReservations();
-    return () => controller.abort();
-  }, []);
+  }, [loadReservations]);
 
   const handleStartCharging = (id: number) => {
     setActiveChargingId(id);
+  };
+
+  const handleSimulationComplete = () => {
+    loadReservations();
+    setActiveChargingId(null);
   };
 
   return (
@@ -106,72 +113,127 @@ export default function AppointmentsPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid gap-4">
-            {reservations.map((res) => (
-              <div 
-                key={res.id} 
-                className="group relative overflow-hidden rounded-2xl border border-slate-700 bg-slate-800/50 p-6 transition-all hover:border-slate-600 hover:bg-slate-800 hover:shadow-xl"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-transparent opacity-0 transition group-hover:opacity-100" />
-                
-                <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                  <div className="flex items-start gap-5">
-                    <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border shadow-lg ${
-                      res.isGreen 
-                        ? 'border-green-500/20 bg-green-500/10 text-green-400' 
-                        : 'border-blue-500/20 bg-blue-500/10 text-blue-400'
-                    }`}>
-                      <Zap className="h-7 w-7" />
-                    </div>
-                    
-                    <div>
-                      <div className="flex items-center gap-3 mb-1">
-                        <h3 className="text-lg font-bold text-white">{res.station.name}</h3>
-                        {res.status === "COMPLETED" && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-slate-700 px-2 py-0.5 text-[10px] font-medium text-slate-300">
-                            <CheckCircle2 className="h-3 w-3" /> Tamamlandı
-                          </span>
-                        )}
-                      </div>
+          <div className="space-y-10">
+            {/* PENDING RESERVATIONS */}
+            {pendingReservations.length > 0 && (
+              <section>
+                <h2 className="mb-4 text-lg font-semibold text-white flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-yellow-400" />
+                  Bekleyen Randevular
+                </h2>
+                <div className="grid gap-4">
+                  {pendingReservations.map((res) => (
+                    <div 
+                      key={res.id} 
+                      className="group relative overflow-hidden rounded-2xl border border-blue-500/30 bg-gradient-to-br from-slate-800 to-slate-900 p-6 shadow-lg shadow-blue-900/20 ring-1 ring-blue-500/20 transition-all hover:shadow-blue-600/20"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-transparent opacity-0 transition group-hover:opacity-100" />
                       
-                      <div className="flex flex-wrap items-center gap-4 text-sm text-slate-400">
-                        <span className="flex items-center gap-1.5">
-                          <Calendar className="h-4 w-4 text-slate-500" />
-                          {new Date(res.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <Clock className="h-4 w-4 text-slate-500" />
-                          {res.hour}
-                        </span>
-                      </div>
+                      <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                        <div className="flex items-start gap-5">
+                          <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border shadow-lg ${
+                            res.isGreen 
+                              ? 'border-green-500/20 bg-green-500/10 text-green-400 shadow-green-900/20' 
+                              : 'border-blue-500/20 bg-blue-500/10 text-blue-400 shadow-blue-900/20'
+                          }`}>
+                            <Zap className="h-7 w-7" />
+                          </div>
+                          
+                          <div>
+                            <div className="flex items-center gap-3 mb-1">
+                              <h3 className="text-lg font-bold text-white">{res.station.name}</h3>
+                              <span className="inline-flex items-center gap-1 rounded-full bg-yellow-500/10 px-2 py-0.5 text-[10px] font-medium text-yellow-400 border border-yellow-500/20 animate-pulse">
+                                <Clock className="h-3 w-3" /> Bekliyor
+                              </span>
+                            </div>
+                            
+                            <div className="flex flex-wrap items-center gap-4 text-sm text-slate-400">
+                              <span className="flex items-center gap-1.5">
+                                <Calendar className="h-4 w-4 text-slate-500" />
+                                {new Date(res.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}
+                              </span>
+                              <span className="flex items-center gap-1.5">
+                                <Clock className="h-4 w-4 text-slate-500" />
+                                {res.hour}
+                              </span>
+                            </div>
 
-                      {res.isGreen && (
-                        <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-green-500/10 px-3 py-1 text-xs font-bold text-green-400 border border-green-500/20">
-                          <Leaf className="h-3.5 w-3.5" />
-                          Eco Slot (+{res.earnedCoins} Coin)
+                            {res.isGreen && (
+                              <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-bold border bg-green-500/10 text-green-400 border-green-500/20">
+                                <Leaf className="h-3.5 w-3.5" />
+                                Eco Slot
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3 sm:self-center">
-                    {res.status !== "COMPLETED" ? (
-                      <button
-                        onClick={() => handleStartCharging(res.id)}
-                        className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition shadow-lg shadow-blue-600/20 active:scale-95"
-                      >
-                        Şarjı Başlat
-                      </button>
-                    ) : (
-                      <div className="text-right">
-                        <p className="text-xs text-slate-500">Kazanılan</p>
-                        <p className="font-bold text-yellow-400">+{res.earnedCoins} Coin</p>
+                        
+                        <div className="flex items-center gap-3 sm:self-center">
+                          <button
+                            onClick={() => handleStartCharging(res.id)}
+                            className="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white text-sm font-bold transition shadow-lg shadow-blue-600/25 active:scale-95 ring-1 ring-blue-400/20"
+                          >
+                            Simülasyonu Başlat
+                          </button>
+                        </div>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            ))}
+              </section>
+            )}
+
+            {/* COMPLETED RESERVATIONS */}
+            {completedReservations.length > 0 && (
+              <section>
+                <h2 className="mb-4 text-lg font-semibold text-slate-400 flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5" />
+                  Tamamlananlar
+                </h2>
+                <div className="grid gap-4 opacity-75 hover:opacity-100 transition-opacity">
+                  {completedReservations.map((res) => (
+                    <div 
+                      key={res.id} 
+                      className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50 p-6 grayscale hover:grayscale-0 transition-all"
+                    >
+                      <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                        <div className="flex items-start gap-5">
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800 text-slate-500 shadow-lg">
+                            <CheckCircle2 className="h-7 w-7" />
+                          </div>
+                          
+                          <div>
+                            <div className="flex items-center gap-3 mb-1">
+                              <h3 className="text-lg font-bold text-slate-400 group-hover:text-slate-200 transition-colors">{res.station.name}</h3>
+                              <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-400 border border-slate-700">
+                                Tamamlandı
+                              </span>
+                            </div>
+                            
+                            <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500">
+                              <span className="flex items-center gap-1.5">
+                                <Calendar className="h-4 w-4" />
+                                {new Date(res.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })}
+                              </span>
+                              <span className="flex items-center gap-1.5">
+                                <Clock className="h-4 w-4" />
+                                {res.hour}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-3 sm:self-center">
+                          <div className="text-right">
+                            <p className="text-xs text-slate-500">Kazanılan</p>
+                            <p className="font-bold text-yellow-500/80 group-hover:text-yellow-400 transition-colors">+{res.earnedCoins} Coin</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         )}
       </div>
@@ -181,16 +243,18 @@ export default function AppointmentsPage() {
         <ChargingSimulation 
           reservation={reservations.find(r => r.id === activeChargingId)!} 
           onClose={() => setActiveChargingId(null)} 
+          onComplete={handleSimulationComplete}
         />
       )}
     </main>
   );
 }
 
-function ChargingSimulation({ reservation, onClose }: { reservation: Reservation; onClose: () => void }) {
+function ChargingSimulation({ reservation, onClose, onComplete }: { reservation: Reservation; onClose: () => void; onComplete: () => void }) {
   const [progress, setProgress] = useState(0);
   const [stats, setStats] = useState({ energy: 0, coins: 0, co2: 0 });
   const [completed, setCompleted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   useEffect(() => {
     const interval = setInterval(() => {
@@ -200,12 +264,12 @@ function ChargingSimulation({ reservation, onClose }: { reservation: Reservation
           setCompleted(true);
           return 100;
         }
-        return prev + 0.8; // Faster simulation
+        return prev + 1; // Faster simulation
       });
       
       setStats(prev => ({
         energy: prev.energy + 0.15,
-        coins: prev.coins + (reservation.isGreen ? 0.8 : 0.2),
+        coins: 50, // Fixed reward
         co2: prev.co2 + 0.08
       }));
     }, 50);
@@ -213,9 +277,31 @@ function ChargingSimulation({ reservation, onClose }: { reservation: Reservation
     return () => clearInterval(interval);
   }, [reservation.isGreen]);
 
-  const handleComplete = () => {
-    // Here you would typically call an API to update status
-    onClose();
+  const handleComplete = async () => {
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/reservations/${reservation.id}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "COMPLETED",
+          earnedCoins: 50,
+          earnedXp: 50
+        })
+      });
+      
+      if (res.ok) {
+        onComplete();
+      } else {
+        console.error("Failed to complete reservation");
+        onClose();
+      }
+    } catch (error) {
+      console.error("Error completing reservation", error);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -275,7 +361,7 @@ function ChargingSimulation({ reservation, onClose }: { reservation: Reservation
             </div>
             <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700/50">
               <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">Kazanılan</div>
-              <div className="font-bold text-yellow-400 text-lg">+{Math.floor(stats.coins)}</div>
+              <div className="font-bold text-yellow-400 text-lg">+{completed ? 50 : "..."}</div>
             </div>
             <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700/50">
               <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">CO₂</div>
@@ -286,9 +372,10 @@ function ChargingSimulation({ reservation, onClose }: { reservation: Reservation
           {completed ? (
             <button 
               onClick={handleComplete}
-              className="w-full py-4 rounded-xl bg-green-500 hover:bg-green-400 text-black font-bold text-lg transition shadow-lg shadow-green-500/25 animate-in slide-in-from-bottom-4"
+              disabled={isSubmitting}
+              className="w-full py-4 rounded-xl bg-green-500 hover:bg-green-400 text-black font-bold text-lg transition shadow-lg shadow-green-500/25 animate-in slide-in-from-bottom-4 disabled:opacity-50"
             >
-              Harika!
+              {isSubmitting ? "İşleniyor..." : "Ödülleri Topla"}
             </button>
           ) : (
             <p className="text-xs text-slate-500 animate-pulse">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   BatteryCharging,
   DollarSign,
@@ -48,6 +49,7 @@ export default function OperatorDashboardPage() {
   const [data, setData] = useState<OperatorResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState("Operator");
 
   // Mock Analytics State
   const [dailyRevenue] = useState(generateDailyRevenue());
@@ -65,6 +67,13 @@ export default function OperatorDashboardPage() {
 
     const loadDashboard = async () => {
       try {
+        // Fetch User Info for Company Name
+        const userRes = await fetch(`/api/users/${ownerId}`, { signal: controller.signal });
+        if (userRes.ok) {
+          const userData = await userRes.json();
+          setCompanyName(userData.name || "Operator");
+        }
+
         const response = await fetch(`/api/company/my-stations?ownerId=${ownerId}`, {
           signal: controller.signal,
         });
@@ -166,18 +175,18 @@ export default function OperatorDashboardPage() {
           <header className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-xs uppercase tracking-[0.3rem] text-purple-300"></p>
-              <h1 className="mt-3 text-3xl font-semibold sm:text-4xl">Zorlu Enerji Kontrol Paneli</h1>
+              <h1 className="mt-3 text-3xl font-semibold sm:text-4xl">{companyName} Kontrol Paneli</h1>
               <p className="mt-2 max-w-2xl text-sm text-slate-200">
                 Gelir akışınızı, yük dengesini ve yeşil slot performansınızı gerçek zamanlı izleyin. Hackathon zamanı,
                 hızla aksiyon alın.
               </p>
             </div>
-            <button
+            <Link
+              href="/operator/campaigns"
               className="rounded-xl bg-purple-600 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-purple-500"
-              type="button"
             >
               + Kampanya Başlat
-            </button>
+            </Link>
           </header>
 
           <section className="space-y-10">
@@ -227,6 +236,10 @@ export default function OperatorDashboardPage() {
                           : station.mockStatus === "YELLOW"
                           ? "bg-yellow-500/15 text-yellow-300"
                           : "bg-red-500/15 text-red-300";
+                      
+                      const statusText = 
+                        station.mockStatus === "GREEN" ? "Düşük Yoğunluk" :
+                        station.mockStatus === "YELLOW" ? "Orta Yoğunluk" : "Yüksek Yoğunluk";
 
                       return (
                         <tr key={station.id} className="hover:bg-slate-600/60">
@@ -257,7 +270,7 @@ export default function OperatorDashboardPage() {
                           </td>
                           <td className="px-6 py-4">
                             <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${statusColor}`}>
-                              {station.mockStatus}
+                              {statusText}
                             </span>
                           </td>
                         </tr>

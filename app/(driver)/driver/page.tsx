@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { BatteryCharging, Leaf, Loader2, Zap, X, PartyPopper, Megaphone } from "lucide-react";
+import { BatteryCharging, Leaf, Loader2, Zap, X, PartyPopper, Megaphone, Sparkles, MapPin } from "lucide-react";
 import type { StationMarker } from "@/components/Map";
 import { generateDynamicTimeslots, calculateGreenRewards, getDensityLevel } from "@/lib/utils-ai";
 
@@ -36,6 +36,7 @@ export default function DriverDashboard() {
   const [isBooking, setIsBooking] = useState(false);
   const [userId, setUserId] = useState<number | null>(null);
   const [toast, setToast] = useState<ToastState>(null);
+  const [filterMode, setFilterMode] = useState<"ALL" | "ECO">("ALL");
 
   useEffect(() => {
     const initUser = async () => {
@@ -106,7 +107,23 @@ export default function DriverDashboard() {
       await new Promise(resolve => setTimeout(resolve, 600));
       
       const generatedSlots = generateDynamicTimeslots();
-      setSlots(generatedSlots);
+      
+      // Apply dynamic pricing based on density
+      const density = station.mockLoad || 50;
+      const basePrice = station.price;
+      
+      const pricedSlots = generatedSlots.map(slot => {
+        let priceMultiplier = 1;
+        if (slot.load < 30) priceMultiplier = 0.95; // -5%
+        else if (slot.load > 70) priceMultiplier = 1.15; // +15%
+        
+        return {
+          ...slot,
+          price: Number((basePrice * priceMultiplier).toFixed(2))
+        };
+      });
+
+      setSlots(pricedSlots);
     } catch (error) {
       console.error("Slot fetch failed", error);
       setToast({ message: "Slot bilgisi alınamadı", detail: "Birazdan tekrar deneyin." });
@@ -187,8 +204,8 @@ export default function DriverDashboard() {
 
         fireConfetti();
         setToast({
-          message: "Rezervasyon tamamlandı!",
-          detail: `+${slot.coins} Coin kazandın — ${slot.isGreen ? "Eco Slot" : "Standart Slot"}.`,
+          message: "Randevu oluşturuldu.",
+          detail: "Simülasyonu tamamlayınca ödüller kazanacaksın.",
         });
         setSelectedStation(null);
       } catch (error) {
@@ -275,12 +292,26 @@ export default function DriverDashboard() {
                 <div className="mb-6 flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-white">Saat Seçimi</h3>
                   <div className="flex gap-2 text-xs">
-                    <span className="flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-1 text-green-400 border border-green-500/20">
+                    <button 
+                      onClick={() => setFilterMode("ECO")}
+                      className={`flex items-center gap-1 rounded-full px-3 py-1.5 transition-all ${
+                        filterMode === "ECO" 
+                          ? "bg-green-500 text-white shadow-lg shadow-green-500/25 ring-1 ring-green-400" 
+                          : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                      }`}
+                    >
                       <Leaf className="h-3 w-3" /> Eco Slot
-                    </span>
-                    <span className="flex items-center gap-1 rounded-full bg-slate-700 px-2 py-1 text-slate-300 border border-slate-600">
+                    </button>
+                    <button 
+                      onClick={() => setFilterMode("ALL")}
+                      className={`flex items-center gap-1 rounded-full px-3 py-1.5 transition-all ${
+                        filterMode === "ALL" 
+                          ? "bg-blue-600 text-white shadow-lg shadow-blue-600/25 ring-1 ring-blue-400" 
+                          : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                      }`}
+                    >
                       Standart
-                    </span>
+                    </button>
                   </div>
                 </div>
 
@@ -291,7 +322,9 @@ export default function DriverDashboard() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                    {slots.map((slot) => {
+                    {slots
+                      .filter(s => filterMode === "ALL" || s.isGreen)
+                      .map((slot) => {
                       return (
                         <button
                           key={slot.hour}
@@ -301,7 +334,7 @@ export default function DriverDashboard() {
                             slot.isGreen
                               ? "border-green-500/30 bg-gradient-to-b from-green-500/10 to-green-900/20 hover:border-green-500/60 hover:shadow-[0_0_15px_-3px_rgba(34,197,94,0.3)]"
                               : "border-slate-700 bg-slate-800/50 hover:border-slate-500 hover:bg-slate-800"
-                          }`}
+                          } ${filterMode === "ECO" && !slot.isGreen ? "opacity-50 grayscale" : ""}`}
                         >
                           {slot.isGreen && (
                             <div className="absolute -right-1 -top-1 h-3 w-3 animate-pulse rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
@@ -337,85 +370,84 @@ export default function DriverDashboard() {
                 )}
               </div>
 
-              {/* Right Panel: AI Insights */}
-              <div className="w-full max-w-md border-l border-slate-700 bg-slate-900/30 p-8 backdrop-blur-sm">
-                
-                {/* AI Recommendation */}
-                <div className="mb-8 rounded-2xl border border-blue-500/30 bg-gradient-to-br from-blue-600/10 to-purple-600/10 p-6 shadow-lg ring-1 ring-blue-500/20">
-                  <div className="mb-4 flex items-center gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/20 text-blue-400">
-                      <Zap className="h-5 w-5" />
-                    </div>
-                    <h3 className="font-bold text-blue-100">AI Smart Pick</h3>
+              {/* Right Panel: AI & Alternatives */}
+              <div className="w-80 border-l border-slate-700 bg-slate-900/50 p-6 backdrop-blur-sm flex flex-col h-full overflow-y-auto">
+                {/* AI Insight */}
+                <div className="mb-6 rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-900/20 to-blue-900/20 p-5 shadow-lg shadow-purple-900/10 shrink-0">
+                  <div className="mb-3 flex items-center gap-2 text-purple-400">
+                    <Sparkles className="h-5 w-5 animate-pulse" />
+                    <span className="text-sm font-bold tracking-wide">AI SMART PICK</span>
                   </div>
                   
                   {slots.find(s => s.isGreen) ? (
-                    <div className="space-y-4">
-                      <p className="text-sm text-blue-200/80">
-                        Yapay zeka, kullanım alışkanlıklarına ve şebeke yüküne göre en verimli saati belirledi.
+                    <>
+                      <p className="mb-3 text-sm leading-relaxed text-slate-300">
+                        Şu an bölgede yoğunluk <span className="text-white font-medium">düşük (%{selectedStation.mockLoad || 24})</span>. 
+                        <br/><br/>
+                        Saat <span className="text-green-400 font-bold">{slots.find(s => s.isGreen)?.label.split(" - ")[0]}</span> için Eco Slot rezervasyonu yaparsan <span className="text-yellow-400 font-bold">{slots.find(s => s.isGreen)?.coins} Coin</span> kazanabilirsin.
                       </p>
-                      <div className="rounded-xl border border-blue-500/30 bg-slate-900/60 p-4">
+                      <button 
+                        onClick={() => {
+                          const s = slots.find(s => s.isGreen);
+                          if(s) handleBooking(s);
+                        }}
+                        className="w-full rounded-lg bg-purple-600 py-2 text-xs font-bold text-white transition hover:bg-purple-500 shadow-lg shadow-purple-600/20"
+                      >
+                        Bu Saati Rezerve Et
+                      </button>
+
+                      {/* Mock Alternative AI Pick */}
+                      <div className="mt-4 pt-4 border-t border-white/10">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-lg font-bold text-white">
-                            {slots.find(s => s.isGreen)?.label}
-                          </span>
-                          <span className="rounded bg-green-500 px-2 py-0.5 text-[10px] font-bold text-black">
-                            ECO
-                          </span>
+                          <span className="text-xs text-slate-400">Alternatif Öneri</span>
+                          <span className="text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded">Daha Hızlı</span>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div className="rounded bg-slate-800 p-2 text-center">
-                            <div className="text-slate-400">Tasarruf</div>
-                            <div className="font-bold text-green-400">%20</div>
-                          </div>
-                          <div className="rounded bg-slate-800 p-2 text-center">
-                            <div className="text-slate-400">XP Ödülü</div>
-                            <div className="font-bold text-yellow-400">+50 XP</div>
-                          </div>
+                        <div className="flex items-center justify-between text-xs text-slate-300">
+                          <span>16:00 - 18:00</span>
+                          <span className="text-white font-medium">120kW DC</span>
                         </div>
-                        <button 
-                          onClick={() => {
-                            const s = slots.find(s => s.isGreen);
-                            if(s) handleBooking(s);
-                          }}
-                          className="mt-3 w-full rounded-lg bg-blue-600 py-2 text-xs font-bold text-white transition hover:bg-blue-500"
-                        >
-                          Hemen Rezerve Et
-                        </button>
                       </div>
-                    </div>
+                    </>
                   ) : (
                     <p className="text-sm text-slate-400">Şu an için özel bir öneri bulunmuyor.</p>
                   )}
                 </div>
 
-                {/* Smart Alternatives (Crowded Station) */}
-                {(selectedStation.mockLoad || 0) > 70 && recommendation && (
-                  <div className="rounded-2xl border border-orange-500/30 bg-orange-500/5 p-6">
-                    <div className="mb-3 flex items-center gap-2 text-orange-400">
-                      <Megaphone className="h-5 w-5" />
-                      <h3 className="font-bold">Alternatif İstasyon</h3>
+                {/* Alternative Stations - ONLY if High Density */}
+                {(selectedStation.mockLoad || 0) > 70 && (
+                  <div className="flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div className="mb-4 flex items-center gap-2 text-orange-400">
+                      <Megaphone className="h-4 w-4" />
+                      <h4 className="text-sm font-medium uppercase tracking-wider">Yoğunluk Uyarısı</h4>
                     </div>
                     <p className="mb-4 text-xs text-slate-400">
-                      Bu istasyon şu an çok yoğun. Yakındaki bu istasyon daha müsait:
+                      Bu istasyon şu an çok yoğun (%{selectedStation.mockLoad}). Daha hızlı şarj için bu alternatifleri değerlendirebilirsin:
                     </p>
-                    <div 
-                      onClick={() => handleStationSelect(recommendation)}
-                      className="group cursor-pointer rounded-xl border border-slate-700 bg-slate-800 p-4 transition hover:border-orange-500/50"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-white group-hover:text-orange-400 transition">
-                          {recommendation.name}
-                        </span>
-                        <span className="text-xs text-green-400 font-mono">
-                          %{recommendation.mockLoad} Yük
-                        </span>
-                      </div>
-                      <div className="mt-2 flex items-center gap-2 text-[10px] text-slate-500">
-                        <span>~2.4 km</span>
-                        <span>•</span>
-                        <span>Daha hızlı şarj</span>
-                      </div>
+                    
+                    <div className="space-y-3">
+                      {[1, 2, 3, 4].map((i) => (
+                        <div
+                          key={i}
+                          className="group flex cursor-pointer items-center gap-3 rounded-xl border border-slate-800 bg-slate-800/30 p-3 transition-all hover:border-green-500/30 hover:bg-slate-800"
+                        >
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-700 text-slate-400 transition-colors group-hover:bg-green-600 group-hover:text-white">
+                            <MapPin className="h-5 w-5" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <div className="font-medium text-slate-200 group-hover:text-white">ZES Point #{100 + i}</div>
+                              <span className="text-[10px] font-bold text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded">
+                                %{30 + i * 5}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-slate-500 group-hover:text-slate-400 mt-1">
+                              <span>{(0.8 + i * 0.4).toFixed(1)} km</span>
+                              <span>•</span>
+                              <span className="text-blue-400">Daha Uygun</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}

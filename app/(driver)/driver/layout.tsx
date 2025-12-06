@@ -54,7 +54,7 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
       </aside>
 
       {/* Ana İçerik Alanı (Harita buraya render olacak) */}
-      <main className="flex-1 overflow-hidden relative">
+      <main className={`flex-1 relative ${pathname === "/driver" ? "overflow-hidden" : "overflow-y-auto"}`}>
         {children}
         <ChatWidget />
       </main>

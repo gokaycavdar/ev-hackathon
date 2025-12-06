@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Megaphone, Plus, Calendar, Users, ArrowRight, Edit2, Trash2, X, Save } from "lucide-react";
-import { Card } from "@/components/ui/Card";
+import { Megaphone, Plus, Calendar, Users, ArrowRight, Edit2, Trash2, X, Save, Tag, Clock, AlertCircle } from "lucide-react";
 
 type Campaign = {
   id: number;
@@ -20,6 +19,7 @@ type Campaign = {
 type Station = {
   id: number;
   name: string;
+  mockStatus?: "GREEN" | "YELLOW" | "RED";
 };
 
 export default function CampaignsPage() {
@@ -28,6 +28,8 @@ export default function CampaignsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  
+  const suggestedStations = stations.filter(s => s.mockStatus === "GREEN");
   
   // Form state
   const [formData, setFormData] = useState<Partial<Campaign>>({
@@ -56,7 +58,12 @@ export default function CampaignsPage() {
       
       if (resStations.ok) {
         const data = await resStations.json();
-        setStations(data.stations || []);
+        // Handle different response structures
+        if (data.stations) {
+          setStations(data.stations);
+        } else if (Array.isArray(data)) {
+          setStations(data);
+        }
       }
     } catch (error) {
       console.error("Failed to fetch data", error);
@@ -115,6 +122,8 @@ export default function CampaignsPage() {
         setIsCreating(false);
         setEditingId(null);
         fetchCampaigns();
+      } else {
+        alert("Kaydetme başarısız oldu.");
       }
     } catch (error) {
       console.error("Save failed", error);
@@ -124,56 +133,102 @@ export default function CampaignsPage() {
   const handleDelete = async (id: number) => {
     if (!confirm("Bu kampanyayı silmek istediğinize emin misiniz?")) return;
     try {
-      await fetch(`/api/campaigns/${id}`, { method: "DELETE" });
-      fetchCampaigns();
+      const res = await fetch(`/api/campaigns/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        fetchCampaigns();
+      }
     } catch (error) {
       console.error("Delete failed", error);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-800 text-white p-8">
-      <header className="flex items-center justify-between mb-10">
+    <div className="min-h-screen bg-slate-900 p-6 lg:p-10 text-white font-sans">
+      <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Kampanya Yönetimi</h1>
-          <p className="text-sm text-slate-200 mt-2">
-            Sürücü davranışlarını yönlendirmek için dinamik kampanyalar oluşturun.
-          </p>
+          <h1 className="text-3xl font-bold tracking-tight text-white">Kampanya Yönetimi</h1>
+          <p className="text-slate-400 mt-1">Müşteri etkileşimini artırmak için kampanyalar oluşturun.</p>
         </div>
         {!isCreating && (
-          <button
+          <button 
             onClick={handleCreate}
-            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white px-5 py-3 rounded-xl font-semibold transition shadow-lg shadow-purple-900/20"
+            className="flex items-center gap-2 rounded-xl bg-purple-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 transition hover:bg-purple-500 hover:shadow-purple-500/40"
           >
-            <Plus className="h-5 w-5" /> Yeni Kampanya
+            <Plus size={18} />
+            Yeni Kampanya
           </button>
         )}
       </header>
 
+      {/* Suggestions Section */}
+      {!isCreating && suggestedStations.length > 0 && (
+        <div className="mb-8 rounded-2xl border border-blue-500/30 bg-blue-500/10 p-6 animate-in fade-in slide-in-from-top-4">
+          <div className="flex items-start gap-4">
+            <div className="rounded-full bg-blue-500/20 p-3 text-blue-400">
+              <AlertCircle size={24} />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-white">Kampanya Önerisi</h3>
+              <p className="mt-1 text-sm text-slate-300">
+                Aşağıdaki istasyonlarınızda yoğunluk düşük seviyede. Kullanımı artırmak için bu istasyonlara özel kampanyalar oluşturabilirsiniz.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                {suggestedStations.map(station => (
+                  <div key={station.id} className="flex items-center gap-3 rounded-xl bg-slate-800 p-3 border border-slate-700">
+                    <div>
+                      <div className="font-medium text-white text-sm">{station.name}</div>
+                      <div className="text-xs text-green-400">Düşük Yoğunluk</div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        handleCreate();
+                        setFormData(prev => ({
+                          ...prev,
+                          title: `${station.name} Özel İndirimi`,
+                          description: `${station.name} istasyonunda geçerli %20 indirim fırsatı!`,
+                          stationId: station.id,
+                          discount: "%20",
+                          target: station.name
+                        }));
+                      }}
+                      className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 transition"
+                    >
+                      Kampanya Oluştur
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isCreating && (
-        <Card className="p-6 mb-8 border-purple-500/30 bg-slate-700/80">
-          <div className="flex justify-between items-center mb-6">
+        <div className="mb-8 rounded-2xl border border-purple-500/30 bg-slate-800/80 p-6 shadow-xl animate-in fade-in slide-in-from-top-4">
+          <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-white">{editingId ? "Kampanyayı Düzenle" : "Yeni Kampanya Oluştur"}</h2>
-            <button onClick={() => setIsCreating(false)} className="text-slate-200 hover:text-white">
-              <X className="h-5 w-5" />
+            <button onClick={() => setIsCreating(false)} className="text-slate-400 hover:text-white transition">
+              <X size={20} />
             </button>
           </div>
           
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-xs text-slate-200">Başlık</label>
-              <input 
-                className="w-full bg-slate-600 border border-slate-500 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
+              <label className="text-xs font-medium text-slate-300">Kampanya Başlığı</label>
+              <input
+                type="text"
+                className="w-full rounded-xl border border-slate-600 bg-slate-700 p-3 text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                 value={formData.title}
-                onChange={e => setFormData({...formData, title: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               />
             </div>
+            
             <div className="space-y-2">
-              <label className="text-xs text-slate-200">Hedef İstasyon (Opsiyonel)</label>
-              <select 
-                className="w-full bg-slate-600 border border-slate-500 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
-                value={formData.stationId ?? ""}
-                onChange={e => setFormData({...formData, stationId: e.target.value ? Number(e.target.value) : null})}
+              <label className="text-xs font-medium text-slate-300">Hedef Kitle / İstasyon</label>
+              <select
+                className="w-full rounded-xl border border-slate-600 bg-slate-700 p-3 text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                value={formData.stationId || ""}
+                onChange={(e) => setFormData({ ...formData, stationId: e.target.value ? parseInt(e.target.value) : null })}
               >
                 <option value="">Tüm İstasyonlar</option>
                 {stations.map(s => (
@@ -181,141 +236,171 @@ export default function CampaignsPage() {
                 ))}
               </select>
             </div>
-            <div className="space-y-2">
-              <label className="text-xs text-slate-200">Ekstra Coin Ödülü</label>
-              <input 
-                type="number"
-                className="w-full bg-slate-600 border border-slate-500 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
-                value={formData.coinReward}
-                onChange={e => setFormData({...formData, coinReward: Number(e.target.value)})}
-              />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <label className="text-xs text-slate-200">Açıklama</label>
-              <textarea 
-                className="w-full bg-slate-600 border border-slate-500 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
-                rows={2}
+
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-xs font-medium text-slate-300">Açıklama</label>
+              <textarea
+                rows={3}
+                className="w-full rounded-xl border border-slate-600 bg-slate-700 p-3 text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none"
                 value={formData.description}
-                onChange={e => setFormData({...formData, description: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               />
             </div>
+
             <div className="space-y-2">
-              <label className="text-xs text-slate-200">İndirim / Avantaj</label>
-              <input 
-                className="w-full bg-slate-600 border border-slate-500 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
-                placeholder="%20 İndirim"
-                value={formData.discount}
-                onChange={e => setFormData({...formData, discount: e.target.value})}
-              />
+              <label className="text-xs font-medium text-slate-300">İndirim Oranı / Tutarı</label>
+              <div className="relative">
+                <Tag className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="%10 veya 50 TL"
+                  className="w-full rounded-xl border border-slate-600 bg-slate-700 p-3 pl-10 text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  value={formData.discount}
+                  onChange={(e) => setFormData({ ...formData, discount: e.target.value })}
+                />
+              </div>
             </div>
+
             <div className="space-y-2">
-              <label className="text-xs text-slate-200">Bitiş Tarihi</label>
-              <input 
-                type="date"
-                className="w-full bg-slate-600 border border-slate-500 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
-                value={formData.endDate ?? ""}
-                onChange={e => setFormData({...formData, endDate: e.target.value})}
-              />
+              <label className="text-xs font-medium text-slate-300">Bitiş Tarihi</label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="date"
+                  className="w-full rounded-xl border border-slate-600 bg-slate-700 p-3 pl-10 text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  value={formData.endDate || ""}
+                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                />
+              </div>
             </div>
+
             <div className="space-y-2">
-              <label className="text-xs text-slate-200">Durum</label>
-              <select 
-                className="w-full bg-slate-600 border border-slate-500 rounded-lg p-3 text-sm text-white focus:border-purple-500 outline-none"
-                value={formData.status}
-                onChange={e => setFormData({...formData, status: e.target.value as any})}
-              >
-                <option value="DRAFT">Taslak</option>
-                <option value="ACTIVE">Aktif</option>
-                <option value="ENDED">Sona Erdi</option>
-              </select>
+              <label className="text-xs font-medium text-slate-300">Durum</label>
+              <div className="flex gap-3">
+                {["ACTIVE", "DRAFT", "ENDED"].map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setFormData({ ...formData, status: status as any })}
+                    className={`flex-1 rounded-xl border py-2 text-sm font-medium transition ${
+                      formData.status === status
+                        ? "border-purple-500 bg-purple-500/20 text-purple-300"
+                        : "border-slate-600 bg-slate-700 text-slate-400 hover:bg-slate-600"
+                    }`}
+                  >
+                    {status === "ACTIVE" ? "Aktif" : status === "DRAFT" ? "Taslak" : "Bitti"}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="mt-6 flex justify-end gap-3">
-            <button 
+          <div className="mt-8 flex justify-end gap-3 border-t border-slate-700 pt-6">
+            <button
               onClick={() => setIsCreating(false)}
-              className="px-4 py-2 rounded-lg text-slate-200 hover:bg-slate-600 transition"
+              className="rounded-xl px-6 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-700 transition"
             >
               İptal
             </button>
-            <button 
+            <button
               onClick={handleSave}
-              className="px-6 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-semibold transition flex items-center gap-2"
+              className="flex items-center gap-2 rounded-xl bg-purple-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-purple-500 transition shadow-lg shadow-purple-500/20"
             >
-              <Save className="h-4 w-4" /> Kaydet
+              <Save size={18} />
+              Kaydet
             </button>
           </div>
-        </Card>
+        </div>
       )}
 
       {isLoading ? (
-        <div className="text-center py-20 text-slate-200">Yükleniyor...</div>
+        <div className="flex justify-center py-20">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-purple-500 border-t-transparent"></div>
+        </div>
       ) : campaigns.length === 0 ? (
-        <div className="text-center py-20 text-slate-200 bg-slate-700/30 rounded-3xl border border-slate-600 border-dashed">
-          <Megaphone className="h-10 w-10 mx-auto mb-4 opacity-20" />
-          <p>Henüz kampanya oluşturulmamış.</p>
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-slate-700 bg-slate-800/50 py-20 text-center">
+          <div className="mb-4 rounded-full bg-slate-700 p-4">
+            <Megaphone className="h-8 w-8 text-slate-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-white">Kampanya Bulunamadı</h3>
+          <p className="mt-2 max-w-sm text-sm text-slate-400">
+            Henüz bir kampanya oluşturmadınız. İlk kampanyanızı oluşturarak başlayın.
+          </p>
+          <button 
+            onClick={handleCreate}
+            className="mt-6 text-sm font-medium text-purple-400 hover:text-purple-300"
+          >
+            Kampanya oluştur &rarr;
+          </button>
         </div>
       ) : (
-        <div className="grid gap-6">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {campaigns.map((campaign) => (
-            <Card key={campaign.id} className="p-6 border-slate-600 bg-slate-700/60 hover:border-purple-500/30 transition group relative">
-              <div className="absolute top-6 right-6 flex gap-2 opacity-0 group-hover:opacity-100 transition">
+            <div 
+              key={campaign.id} 
+              className="group relative overflow-hidden rounded-2xl border border-slate-700 bg-slate-800 p-6 transition hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-500/10"
+            >
+              <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition z-10">
                 <button 
                   onClick={() => handleEdit(campaign)}
-                  className="p-2 rounded-lg bg-slate-600 hover:bg-blue-600/20 hover:text-blue-400 text-slate-200 transition"
+                  className="p-2 rounded-lg bg-slate-700 hover:bg-blue-600/20 hover:text-blue-400 text-slate-300 transition"
                 >
                   <Edit2 className="h-4 w-4" />
                 </button>
                 <button 
                   onClick={() => handleDelete(campaign.id)}
-                  className="p-2 rounded-lg bg-slate-600 hover:bg-red-600/20 hover:text-red-400 text-slate-200 transition"
+                  className="p-2 rounded-lg bg-slate-700 hover:bg-red-600/20 hover:text-red-400 text-slate-300 transition"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="flex items-start gap-4">
-                  <div className={`p-3 rounded-xl ${campaign.status === 'ACTIVE' ? 'bg-green-500/10 text-green-400' : 'bg-slate-600 text-slate-200'}`}>
-                    <Megaphone className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-lg font-semibold text-white">{campaign.title}</h3>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide ${
-                        campaign.status === 'ACTIVE' 
-                          ? 'bg-green-500/15 text-green-400 border border-green-500/20' 
-                          : 'bg-slate-500 text-slate-200 border border-slate-400'
-                      }`}>
-                        {campaign.status === 'ACTIVE' ? 'Aktif' : campaign.status === 'DRAFT' ? 'Taslak' : 'Bitti'}
-                      </span>
-                    </div>
-                    <p className="text-slate-200 text-sm mt-1 max-w-xl">{campaign.description}</p>
-                    
-                    <div className="flex items-center gap-4 mt-4 text-xs text-slate-300">
-                      <span className="flex items-center gap-1.5">
-                        <Users className="h-3.5 w-3.5" /> {campaign.station ? campaign.station.name : campaign.target || "Tüm İstasyonlar"}
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <Calendar className="h-3.5 w-3.5" /> Bitiş: {campaign.endDate ? new Date(campaign.endDate).toLocaleDateString('tr-TR') : '—'}
-                      </span>
-                      {campaign.coinReward && campaign.coinReward > 0 && (
-                        <span className="flex items-center gap-1.5 text-yellow-400/80">
-                          + {campaign.coinReward} Coin
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-6 pl-14 md:pl-0">
-                  <div className="text-right">
-                    <div className="text-xs text-slate-300 uppercase tracking-wider font-medium">Avantaj</div>
-                    <div className="text-xl font-bold text-purple-300">{campaign.discount}</div>
-                  </div>
+              <div className="flex items-start justify-between mb-4">
+                <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                  campaign.status === 'ACTIVE' 
+                    ? 'bg-green-500/10 text-green-400 border border-green-500/20' 
+                    : campaign.status === 'DRAFT' 
+                      ? 'bg-slate-700 text-slate-400 border border-slate-600' 
+                      : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                }`}>
+                  {campaign.status === 'ACTIVE' ? 'Aktif' : campaign.status === 'DRAFT' ? 'Taslak' : 'Bitti'}
                 </div>
               </div>
-            </Card>
+
+              <h3 className="text-xl font-bold text-white mb-2">{campaign.title}</h3>
+              <p className="text-sm text-slate-400 line-clamp-2 mb-6 h-10">{campaign.description}</p>
+
+              <div className="space-y-3 border-t border-slate-700 pt-4">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <Tag size={14} />
+                    <span>İndirim</span>
+                  </div>
+                  <span className="font-semibold text-purple-400">{campaign.discount}</span>
+                </div>
+                
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <Users size={14} />
+                    <span>Hedef</span>
+                  </div>
+                  <span className="font-medium text-slate-200 truncate max-w-[150px]">
+                    {campaign.station ? campaign.station.name : "Tüm İstasyonlar"}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <Clock size={14} />
+                    <span>Bitiş</span>
+                  </div>
+                  <span className="font-medium text-slate-200">
+                    {campaign.endDate ? new Date(campaign.endDate).toLocaleDateString('tr-TR') : "Süresiz"}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-purple-600 to-blue-600 opacity-0 transition-opacity group-hover:opacity-100"></div>
+            </div>
           ))}
         </div>
       )}

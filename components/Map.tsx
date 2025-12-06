@@ -69,13 +69,15 @@ export default function Map({ stations, onSelect, initialCenter, zoom = 12 }: Ma
           }
 
           const isHighDensity = status === "RED";
-          const pulseHtml = isHighDensity ? `<div class="absolute inset-0 rounded-full ${colorClass} animate-ping opacity-75"></div>` : "";
-
+          // Soft radial glow for density
+          const glowColor = status === "RED" ? "rgba(239, 68, 68, 0.4)" : status === "YELLOW" ? "rgba(234, 179, 8, 0.4)" : "rgba(34, 197, 94, 0.4)";
+          
           const customIcon = L.divIcon({
             className: "custom-station-icon bg-transparent border-none",
             html: `
-              <div class="relative flex items-center justify-center w-12 h-12 -ml-2 -mt-2">
-                ${pulseHtml}
+              <div class="relative flex items-center justify-center w-16 h-16 -ml-4 -mt-4">
+                <div class="absolute inset-0 rounded-full blur-md" style="background: ${glowColor}; transform: scale(1.5);"></div>
+                ${isHighDensity ? `<div class="absolute inset-0 rounded-full ${colorClass} animate-ping opacity-20"></div>` : ""}
                 <div class="relative w-8 h-8 rounded-full border-2 border-white ${colorClass} ${shadowClass} shadow-lg flex items-center justify-center z-10">
                    <span class="text-[10px] font-bold text-white">${load}%</span>
                 </div>

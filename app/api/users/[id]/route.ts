@@ -25,7 +25,7 @@ export async function GET(request: Request, { params }: Params) {
 					include: {
 						station: { select: { id: true, name: true, price: true } },
 					},
-					orderBy: { date: "desc" },
+					orderBy: { id: "desc" },
 					take: 10,
 				},
 			},

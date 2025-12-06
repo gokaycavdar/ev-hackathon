@@ -129,7 +129,7 @@ export default function ChatWidget() {
           ...prev,
           {
             role: "bot",
-            content: `Harika! ${rec.name} istasyonunda saat ${rec.hour} için randevun oluşturuldu. ${data.user.coins} SmartCoin bakiyen var.`,
+            content: `Harika! ${rec.name} istasyonunda saat ${rec.hour} için randevun oluşturuldu. ${data.user?.coins ?? 0} SmartCoin bakiyen var.`,
           },
         ]);
       } else {

@@ -53,6 +53,9 @@ export async function GET(request: Request) {
 			reservationCount: number;
 			greenReservationCount: number;
 			revenue: number;
+			status: "ACTIVE" | "INACTIVE" | "MAINTENANCE";
+			type: "AC" | "DC";
+			power: number;
 		};
 
 		const stationPayload: StationSummary[] = stations.map((station: StationRecord) => {
@@ -76,6 +79,9 @@ export async function GET(request: Request) {
 				reservationCount: station.reservations.length,
 				greenReservationCount: greenReservations,
 				revenue: Number(revenue.toFixed(2)),
+				status: "ACTIVE", // Default to ACTIVE as requested
+				type: "DC", // Mock type
+				power: 120, // Mock power
 			};
 		});
 

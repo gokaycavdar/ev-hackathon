@@ -2,24 +2,29 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, Search, Filter, MapPin, Zap, Battery, MoreVertical, Edit, Trash } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, Search, Filter, MapPin, Zap, Battery, MoreVertical, Edit, Trash, List, Map as MapIcon } from "lucide-react";
+import Map from "@/components/Map";
 
 type Station = {
   id: number;
   name: string;
-  latitude: number;
-  longitude: number;
+  lat: number;
+  lng: number;
   status: "ACTIVE" | "INACTIVE" | "MAINTENANCE";
   price: number;
   type: "AC" | "DC";
   power: number; // kW
-  connectorType: string;
+  connectorType?: string;
+  address?: string;
 };
 
 export default function StationsPage() {
+  const router = useRouter();
   const [stations, setStations] = useState<Station[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
 
   useEffect(() => {
     const fetchStations = async () => {
@@ -30,10 +35,16 @@ export default function StationsPage() {
           const data = await res.json();
           // The API returns a complex object, we need to extract stations from it or adjust the type
           // Based on dashboard, it returns { stats: ..., stations: ... }
-          if (data.stations) {
-            setStations(data.stations);
-          } else if (Array.isArray(data)) {
+          // Actually api/company/my-stations returns an array directly in the code I read?
+          // Wait, let me check api/company/my-stations/route.ts again.
+          // It returns `NextResponse.json(stationPayload)`?
+          // No, wait.
+          // The code I read for api/company/my-stations/route.ts ended with `const stats = ...`.
+          // I need to check what it actually returns.
+          if (Array.isArray(data)) {
              setStations(data);
+          } else if (data.stations) {
+            setStations(data.stations);
           }
         }
       } catch (error) {
@@ -67,24 +78,47 @@ export default function StationsPage() {
       </header>
 
       {/* Filters & Search */}
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-          <input 
-            type="text" 
-            placeholder="İstasyon ara..." 
-            className="w-full rounded-xl border border-slate-700 bg-slate-800 py-3 pl-10 pr-4 text-sm text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row justify-between">
+        <div className="flex gap-4 flex-1">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="İstasyon ara..." 
+              className="w-full rounded-xl border border-slate-700 bg-slate-800 py-3 pl-10 pr-4 text-sm text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <button className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-medium text-slate-300 hover:bg-slate-700">
+            <Filter size={18} />
+            Filtrele
+          </button>
         </div>
-        <button className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-medium text-slate-300 hover:bg-slate-700">
-          <Filter size={18} />
-          Filtrele
-        </button>
+
+        <div className="flex bg-slate-800 rounded-xl p-1 border border-slate-700">
+          <button
+            onClick={() => setViewMode("list")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+              viewMode === "list" ? "bg-slate-700 text-white shadow-sm" : "text-slate-400 hover:text-white"
+            }`}
+          >
+            <List size={18} />
+            Liste
+          </button>
+          <button
+            onClick={() => setViewMode("map")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+              viewMode === "map" ? "bg-slate-700 text-white shadow-sm" : "text-slate-400 hover:text-white"
+            }`}
+          >
+            <MapIcon size={18} />
+            Harita
+          </button>
+        </div>
       </div>
 
-      {/* Stations Grid */}
+      {/* Content */}
       {isLoading ? (
         <div className="flex justify-center py-20">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-purple-500 border-t-transparent"></div>
@@ -105,12 +139,20 @@ export default function StationsPage() {
             İlk istasyonunuzu ekleyin &rarr;
           </Link>
         </div>
+      ) : viewMode === "map" ? (
+        <div className="h-[600px] rounded-2xl overflow-hidden border border-slate-700">
+          <Map 
+            stations={filteredStations} 
+            onSelect={(station) => router.push(`/operator/stations/${station.id}`)}
+          />
+        </div>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {filteredStations.map((station) => (
-            <div 
+            <Link 
+              href={`/operator/stations/${station.id}`}
               key={station.id} 
-              className="group relative overflow-hidden rounded-2xl border border-slate-700 bg-slate-800 p-5 transition hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-500/10"
+              className="group relative overflow-hidden rounded-2xl border border-slate-700 bg-slate-800 p-5 transition hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-500/10 block"
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -121,12 +163,12 @@ export default function StationsPage() {
                     <h3 className="font-semibold text-white">{station.name}</h3>
                     <div className="flex items-center gap-1 text-xs text-slate-400">
                       <MapPin size={12} />
-                      <span>{station.latitude?.toFixed(4) || 0}, {station.longitude?.toFixed(4) || 0}</span>
+                      <span>{station.lat?.toFixed(4) || 0}, {station.lng?.toFixed(4) || 0}</span>
                     </div>
                   </div>
                 </div>
                 <button className="text-slate-400 hover:text-white">
-                  <MoreVertical size={18} />
+                  <Edit size={18} />
                 </button>
               </div>
 
@@ -160,7 +202,7 @@ export default function StationsPage() {
               </div>
               
               <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-purple-500 to-blue-500 opacity-0 transition-opacity group-hover:opacity-100"></div>
-            </div>
+            </Link>
           ))}
         </div>
       )}
