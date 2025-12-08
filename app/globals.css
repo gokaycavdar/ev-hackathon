@@ -1,45 +1,91 @@
-@tailwind base;
+﻿@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Global EcoCharge background & tokens */
 :root {
-	--eco-grid: radial-gradient(circle at 20% 20%, rgba(56,189,248,.12), transparent 60%),
-							radial-gradient(circle at 80% 80%, rgba(34,197,94,.14), transparent 55%);
-	--eco-gradient: linear-gradient(120deg, rgba(2,132,199,.35), rgba(16,185,129,.25), rgba(99,102,241,.25));
+  /* Base Colors - Lighter/Softer Dark Theme (Slate) */
+  --bg-primary: 15 23 42;   /* Slate 900 */
+  --bg-surface-1: 30 41 59; /* Slate 800 */
+  --bg-surface-2: 51 65 85; /* Slate 700 */
+  --bg-surface-3: 71 85 105; /* Slate 600 */
+
+  /* Text Colors */
+  --text-primary: 248 250 252; /* Slate 50 */
+  --text-secondary: 203 213 225; /* Slate 300 */
+  --text-tertiary: 148 163 184; /* Slate 400 */
+
+  /* Borders */
+  --border-primary: 51 65 85; /* Slate 700 */
+  --border-highlight: 56 189 248; /* Sky 400 */
+
+  /* Accents - Modern Turquoise/Blue */
+  --accent-primary: 14 165 233; /* Sky 500 */
+  --accent-secondary: 37 99 235; /* Blue 600 */
+  --accent-hover: 56 189 248;
+  --accent-glow: 14 165 233;
+
+  /* Status Colors */
+  --status-success: 16 185 129;
+  --status-warning: 245 158 11;
+  --status-error: 239 68 68;
+  --status-info: 59 130 246;
+
+  /* Gradients */
+  --bg-gradient: radial-gradient(circle at top center, #1e293b 0%, #0B0E14 100%);
 }
 
-html, body {
-	min-height: 100%;
+@layer base {
+  html {
+    font-family: 'Inter', sans-serif;
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-primary-bg text-primary antialiased;
+    background-image: 
+      radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight;
+  }
 }
 
-body {
-	background-color: #0f172a; /* slate-900 */
-	color: #f8fafc; /* slate-50 */
-	background-image: var(--eco-grid);
-	font-feature-settings: "ss01", "cv01", "cv11";
-	-webkit-font-smoothing: antialiased;
+@layer utilities {
+  .glass {
+    @apply bg-surface-1/70 backdrop-blur-md border border-white/5;
+  }
+  
+  .glass-card {
+    @apply bg-surface-1/50 backdrop-blur-sm border border-white/5 shadow-lg;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-accent-primary to-accent-secondary;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
 
-/* Utility helpers (no @apply with opacity syntax to avoid Tailwind parse errors) */
-.text-gradient-eco { background: var(--eco-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
-
-/* Glass effect helper classes using raw CSS (optional) */
-.glass-soft {
-	background-color: rgba(15, 23, 42, 0.60); /* slate-900 base */
-	backdrop-filter: blur(12px);
-	border: 1px solid rgba(51, 65, 85, 0.5); /* slate-700 border */
-	box-shadow: 0 4px 24px -4px rgba(0,0,0,0.4);
-}
-.glass-intense {
-	background-color: rgba(15, 23, 42, 0.8); /* slate-900 base */
-	backdrop-filter: blur(18px);
-	border: 1px solid rgba(71, 85, 105, 0.5); /* slate-600 border */
-	box-shadow: 0 6px 32px -6px rgba(0,0,0,0.55);
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-/* Scrollbar minimal styling */
-*::-webkit-scrollbar { width: 6px; }
-*::-webkit-scrollbar-track { background: #0f172a; }
-*::-webkit-scrollbar-thumb { background: #334155; border-radius: 99px; }
-*::-webkit-scrollbar-thumb:hover { background: #475569; }
+::-webkit-scrollbar-track {
+  @apply bg-primary-bg;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-surface-3 rounded-full;
+}

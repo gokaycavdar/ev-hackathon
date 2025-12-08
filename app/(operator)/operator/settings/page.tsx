@@ -53,42 +53,42 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 p-8">
+    <div className="min-h-screen bg-primary-bg text-primary p-8 font-sans">
       <header className="mb-10">
-        <h1 className="text-3xl font-bold text-slate-900">Ayarlar</h1>
-        <p className="text-sm text-slate-500 mt-2">
+        <h1 className="text-3xl font-bold text-white font-display">Ayarlar</h1>
+        <p className="text-sm text-text-secondary mt-2">
           Hesap ve uygulama tercihlerinizi yönetin.
         </p>
       </header>
 
       <div className="grid gap-6 max-w-4xl">
-        <Card className="p-6 border-slate-200 bg-white shadow-sm">
+        <Card className="p-6 border-white/10 bg-surface-1 shadow-sm">
           <div className="flex items-center gap-4 mb-6">
-            <div className="p-3 rounded-xl bg-blue-50 text-blue-600">
+            <div className="p-3 rounded-xl bg-accent-primary/10 text-accent-primary">
               <User className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">Profil Bilgileri</h2>
-              <p className="text-sm text-slate-500">Kişisel bilgilerinizi güncelleyin.</p>
+              <h2 className="text-lg font-semibold text-white">Profil Bilgileri</h2>
+              <p className="text-sm text-text-secondary">Kişisel bilgilerinizi güncelleyin.</p>
             </div>
           </div>
           
           {isLoading ? (
-            <div className="text-center py-10 text-slate-500">Yükleniyor...</div>
+            <div className="text-center py-10 text-text-tertiary">Yükleniyor...</div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-xs text-slate-500">Ad Soyad</label>
+                <label className="text-xs text-text-secondary">Ad Soyad</label>
                 <input 
-                  className="w-full bg-white border border-slate-200 rounded-lg p-3 text-sm text-slate-900 focus:border-blue-500 outline-none"
+                  className="w-full bg-surface-2 border border-white/10 rounded-lg p-3 text-sm text-white focus:border-accent-primary outline-none focus:ring-1 focus:ring-accent-primary"
                   value={formData.name}
                   onChange={e => setFormData({...formData, name: e.target.value})}
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs text-slate-500">E-posta</label>
+                <label className="text-xs text-text-secondary">E-posta</label>
                 <input 
-                  className="w-full bg-white border border-slate-200 rounded-lg p-3 text-sm text-slate-900 focus:border-blue-500 outline-none"
+                  className="w-full bg-surface-2 border border-white/10 rounded-lg p-3 text-sm text-white focus:border-accent-primary outline-none focus:ring-1 focus:ring-accent-primary"
                   value={formData.email}
                   onChange={e => setFormData({...formData, email: e.target.value})}
                 />
@@ -100,7 +100,7 @@ export default function SettingsPage() {
             <button 
               onClick={handleSave}
               disabled={isLoading}
-              className="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-blue-500/20"
+              className="px-6 py-2 rounded-lg bg-accent-primary hover:bg-accent-hover text-white text-sm font-medium transition flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-accent-primary/20"
             >
               <Save className="h-4 w-4" /> Kaydet
             </button>

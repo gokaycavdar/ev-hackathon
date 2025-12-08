@@ -78,62 +78,65 @@ export default function AuthLandingPage() {
 	};
 
 	return (
-		<main className="relative min-h-screen w-full overflow-hidden bg-slate-900 text-white font-sans selection:bg-blue-500/30">
+		<main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-primary-bg text-primary selection:bg-accent-primary selection:text-white">
 			{/* Background Effects */}
-			<div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-800 via-slate-900 to-slate-950" />
-			<div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[500px] bg-blue-500/10 blur-[120px] rounded-full pointer-events-none" />
-			
-			{/* Content Container */}
-			<div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 py-12 lg:px-8">
-				
-				{/* Hero Section */}
-				<div className="mx-auto max-w-4xl text-center animate-in fade-in slide-in-from-bottom-8 duration-700">
-					<div className="mb-8 inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-4 py-1.5 text-sm font-medium text-blue-300 shadow-lg shadow-blue-500/10 backdrop-blur-sm">
-						<Zap className="h-4 w-4 fill-blue-300" />
-						<span>Hackathon Prototype v1.0</span>
+			<div className="absolute inset-0 overflow-hidden pointer-events-none">
+				<div className="absolute -top-[20%] -left-[10%] h-[600px] w-[600px] rounded-full bg-accent-primary/10 blur-[120px]" />
+				<div className="absolute top-[40%] -right-[10%] h-[500px] w-[500px] rounded-full bg-blue-600/10 blur-[100px]" />
+			</div>
+
+			<div className="relative z-10 w-full max-w-6xl px-6 py-12 text-center">
+				<div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+					{/* Hero Badge */}
+					<div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-sm text-accent-primary backdrop-blur-md">
+						<span className="relative flex h-2 w-2">
+						  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-primary opacity-75"></span>
+						  <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-primary"></span>
+						</span>
+						Hackathon 2025
 					</div>
-					
-					<h1 className="mb-6 text-5xl font-bold tracking-tight text-white sm:text-7xl drop-shadow-2xl">
-						SmartCharge
-						<span className="block mt-2 text-3xl sm:text-4xl font-medium text-slate-400 tracking-normal">
-							Yapay Zekâ Destekli Akıllı Şarj Ağı
+
+					<h1 className="mb-6 text-5xl font-extrabold tracking-tight sm:text-7xl font-display">
+						Akıllı Şarjın <br />
+						<span className="text-gradient">
+							Geleceği Burada
 						</span>
 					</h1>
 					
-					<p className="mx-auto mb-10 max-w-2xl text-lg text-slate-400 leading-relaxed">
+					<p className="mx-auto mb-10 max-w-2xl text-lg text-text-secondary leading-relaxed">
 						Şebeke yüküne göre en verimli saatleri öneren, boş istasyonları otomatik bulan, 
 						Coin ve XP ile oyunlaştırılmış yeni nesil şarj platformu.
 					</p>
 
 					{/* Feature Grid */}
 					<div className="mb-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 text-left">
-						<div className="group rounded-2xl border border-slate-800 bg-slate-800/50 p-5 transition hover:border-blue-500/30 hover:bg-slate-800">
-							<div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400 group-hover:scale-110 transition-transform">
+						<div className="group glass-card rounded-2xl p-5 transition hover:border-accent-primary/30 hover:bg-surface-2">
+							<div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-accent-primary/10 text-accent-primary group-hover:scale-110 transition-transform">
 								<Zap className="h-5 w-5" />
 							</div>
 							<h3 className="font-semibold text-white">AI Smart Pick</h3>
-							<p className="mt-1 text-xs text-slate-400">En uygun ve ekonomik şarj saatlerini belirler.</p>
+							<p className="mt-1 text-xs text-text-secondary">En uygun ve ekonomik şarj saatlerini belirler.</p>
 						</div>
-						<div className="group rounded-2xl border border-slate-800 bg-slate-800/50 p-5 transition hover:border-green-500/30 hover:bg-slate-800">
+						<div className="group glass-card rounded-2xl p-5 transition hover:border-green-500/30 hover:bg-surface-2">
 							<div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/10 text-green-400 group-hover:scale-110 transition-transform">
 								<MapPin className="h-5 w-5" />
 							</div>
 							<h3 className="font-semibold text-white">Yoğunluk Haritası</h3>
-							<p className="mt-1 text-xs text-slate-400">Gerçek zamanlı istasyon doluluk takibi.</p>
+							<p className="mt-1 text-xs text-text-secondary">Gerçek zamanlı istasyon doluluk takibi.</p>
 						</div>
-						<div className="group rounded-2xl border border-slate-800 bg-slate-800/50 p-5 transition hover:border-yellow-500/30 hover:bg-slate-800">
+						<div className="group glass-card rounded-2xl p-5 transition hover:border-yellow-500/30 hover:bg-surface-2">
 							<div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-500/10 text-yellow-400 group-hover:scale-110 transition-transform">
 								<Trophy className="h-5 w-5" />
 							</div>
 							<h3 className="font-semibold text-white">Gamification</h3>
-							<p className="mt-1 text-xs text-slate-400">Coin, XP ve rozetlerle ödül sistemi.</p>
+							<p className="mt-1 text-xs text-text-secondary">Coin, XP ve rozetlerle ödül sistemi.</p>
 						</div>
-						<div className="group rounded-2xl border border-slate-800 bg-slate-800/50 p-5 transition hover:border-purple-500/30 hover:bg-slate-800">
+						<div className="group glass-card rounded-2xl p-5 transition hover:border-purple-500/30 hover:bg-surface-2">
 							<div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500/10 text-purple-400 group-hover:scale-110 transition-transform">
 								<Building2 className="h-5 w-5" />
 							</div>
 							<h3 className="font-semibold text-white">İşletme Paneli</h3>
-							<p className="mt-1 text-xs text-slate-400">Operatörler için detaylı yönetim.</p>
+							<p className="mt-1 text-xs text-text-secondary">Operatörler için detaylı yönetim.</p>
 						</div>
 					</div>
 
@@ -141,7 +144,7 @@ export default function AuthLandingPage() {
 					{!showLogin ? (
 						<button
 							onClick={() => setShowLogin(true)}
-							className="group relative inline-flex items-center gap-3 rounded-full bg-white px-8 py-4 text-lg font-bold text-slate-900 transition-all hover:bg-blue-50 hover:scale-105 hover:shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] active:scale-95"
+							className="group relative inline-flex items-center gap-3 rounded-full bg-white px-8 py-4 text-lg font-bold text-primary-bg transition-all hover:bg-accent-primary hover:text-white hover:scale-105 hover:shadow-[0_0_40px_-10px_rgba(14,165,233,0.5)] active:scale-95"
 						>
 							Uygulamaya Başla
 							<ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
@@ -149,10 +152,10 @@ export default function AuthLandingPage() {
 					) : (
 						/* Login Form (Inline) */
 						<div className="mx-auto max-w-md animate-in fade-in zoom-in duration-300">
-							<div className="relative overflow-hidden rounded-3xl border border-slate-700 bg-slate-800/80 p-8 shadow-2xl backdrop-blur-xl">
+							<div className="relative overflow-hidden rounded-3xl border border-white/10 bg-surface-1/80 p-8 shadow-2xl backdrop-blur-xl">
 								<button 
 									onClick={() => setShowLogin(false)}
-									className="absolute right-4 top-4 text-slate-500 hover:text-white transition"
+									className="absolute right-4 top-4 text-text-secondary hover:text-white transition"
 								>
 									<X className="h-5 w-5" />
 								</button>
@@ -168,11 +171,11 @@ export default function AuthLandingPage() {
 											placeholder="E-posta adresiniz"
 											value={email}
 											onChange={(e) => setEmail(e.target.value)}
-											className="w-full rounded-xl border border-slate-600 bg-slate-900/50 px-4 py-3 text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition"
+											className="w-full rounded-xl border border-white/10 bg-surface-2/50 px-4 py-3 text-white placeholder-text-secondary focus:border-accent-primary focus:outline-none focus:ring-1 focus:ring-accent-primary transition"
 											onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
 										/>
 										{predictedRole && (
-											<p className="mt-2 flex items-center gap-1.5 text-xs text-blue-400">
+											<p className="mt-2 flex items-center gap-1.5 text-xs text-accent-primary">
 												<CheckCircle2 className="h-3 w-3" />
 												{predictedRole} olarak algılandı
 											</p>
@@ -182,7 +185,7 @@ export default function AuthLandingPage() {
 									<button
 										onClick={() => handleSubmit()}
 										disabled={isSubmitting}
-										className="w-full rounded-xl bg-blue-600 py-3 font-bold text-white transition hover:bg-blue-500 disabled:opacity-50"
+										className="w-full rounded-xl bg-accent-primary py-3 font-bold text-white transition hover:bg-accent-hover disabled:opacity-50 shadow-lg shadow-accent-primary/20"
 									>
 										{isSubmitting ? (
 											<span className="flex items-center justify-center gap-2">
@@ -200,20 +203,20 @@ export default function AuthLandingPage() {
 									)}
 
 									<div className="relative py-2">
-										<div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-700"></div></div>
-										<div className="relative flex justify-center"><span className="bg-slate-800 px-2 text-xs text-slate-500">veya demo hesap seç</span></div>
+										<div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
+										<div className="relative flex justify-center"><span className="bg-surface-1 px-2 text-xs text-text-secondary">veya demo hesap seç</span></div>
 									</div>
 
 									<div className="grid grid-cols-2 gap-3">
 										<button
 											onClick={() => handleSubmit(DEMO_EMAILS.driver)}
-											className="rounded-xl border border-slate-700 bg-slate-800 py-2 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition"
+											className="rounded-xl border border-white/10 bg-surface-2 py-2 text-xs font-medium text-text-secondary hover:bg-surface-3 hover:text-white transition"
 										>
 											Sürücü Demo
 										</button>
 										<button
 											onClick={() => handleSubmit(DEMO_EMAILS.operator)}
-											className="rounded-xl border border-slate-700 bg-slate-800 py-2 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition"
+											className="rounded-xl border border-white/10 bg-surface-2 py-2 text-xs font-medium text-text-secondary hover:bg-surface-3 hover:text-white transition"
 										>
 											Operatör Demo
 										</button>
@@ -225,7 +228,7 @@ export default function AuthLandingPage() {
 				</div>
 				
 				{/* Footer */}
-				<footer className="absolute bottom-6 text-center text-xs text-slate-600">
+				<footer className="absolute bottom-6 text-center text-xs text-text-tertiary">
 					&copy; 2025 SmartCharge. All rights reserved.
 				</footer>
 			</div>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -63,15 +63,15 @@ export default function StationsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 lg:p-10 text-slate-900 font-sans">
+    <div className="min-h-screen bg-primary-bg p-6 lg:p-10 text-primary font-sans">
       <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">İstasyon Yönetimi</h1>
-          <p className="text-slate-500 mt-1">Şarj noktalarınızı izleyin ve yönetin.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-white font-display">İstasyon Yönetimi</h1>
+          <p className="text-text-secondary mt-1">Şarj noktalarınızı izleyin ve yönetin.</p>
         </div>
         <Link 
           href="/operator/stations/new" 
-          className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-500 hover:shadow-blue-500/40"
+          className="flex items-center gap-2 rounded-xl bg-accent-primary px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-accent-primary/20 transition hover:bg-accent-hover hover:shadow-accent-primary/30"
         >
           <Plus size={18} />
           Yeni İstasyon Ekle
@@ -82,26 +82,26 @@ export default function StationsPage() {
       <div className="mb-8 flex flex-col gap-4 sm:flex-row justify-between">
         <div className="flex gap-4 flex-1">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-text-tertiary" />
             <input 
               type="text" 
               placeholder="İstasyon ara..." 
-              className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-xl border border-white/10 bg-surface-1 py-3 pl-10 pr-4 text-sm text-white placeholder-text-tertiary focus:border-accent-primary focus:outline-none focus:ring-1 focus:ring-accent-primary"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <button className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50">
+          <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-surface-1 px-4 py-3 text-sm font-medium text-text-secondary hover:bg-surface-2 transition">
             <Filter size={18} />
             Filtrele
           </button>
         </div>
 
-        <div className="flex bg-white rounded-xl p-1 border border-slate-200">
+        <div className="flex bg-surface-1 rounded-xl p-1 border border-white/10">
           <button
             onClick={() => setViewMode("list")}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
-              viewMode === "list" ? "bg-slate-100 text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-900"
+              viewMode === "list" ? "bg-surface-3 text-accent-primary shadow-sm" : "text-text-secondary hover:text-white"
             }`}
           >
             <List size={18} />
@@ -110,7 +110,7 @@ export default function StationsPage() {
           <button
             onClick={() => setViewMode("map")}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
-              viewMode === "map" ? "bg-slate-100 text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-900"
+              viewMode === "map" ? "bg-surface-3 text-accent-primary shadow-sm" : "text-text-secondary hover:text-white"
             }`}
           >
             <MapIcon size={18} />
@@ -122,26 +122,26 @@ export default function StationsPage() {
       {/* Content */}
       {isLoading ? (
         <div className="flex justify-center py-20">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-accent-primary border-t-transparent"></div>
         </div>
       ) : filteredStations.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-3xl border border-slate-200 bg-white py-20 text-center">
-          <div className="mb-4 rounded-full bg-slate-100 p-4">
-            <Zap className="h-8 w-8 text-slate-400" />
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-white/10 bg-surface-1 py-20 text-center shadow-sm">
+          <div className="mb-4 rounded-full bg-surface-2 p-4">
+            <Zap className="h-8 w-8 text-text-tertiary" />
           </div>
-          <h3 className="text-lg font-semibold text-slate-900">İstasyon Bulunamadı</h3>
-          <p className="mt-2 max-w-sm text-sm text-slate-500">
+          <h3 className="text-lg font-semibold text-white">İstasyon Bulunamadı</h3>
+          <p className="mt-2 max-w-sm text-sm text-text-secondary">
             Henüz bir istasyon eklemediniz veya aramanızla eşleşen sonuç yok.
           </p>
           <Link 
             href="/operator/stations/new" 
-            className="mt-6 text-sm font-medium text-blue-600 hover:text-blue-500"
+            className="mt-6 text-sm font-medium text-accent-primary hover:text-accent-hover"
           >
             İlk istasyonunuzu ekleyin &rarr;
           </Link>
         </div>
       ) : viewMode === "map" ? (
-        <div className="h-[600px] rounded-2xl overflow-hidden border border-slate-200">
+        <div className="h-[600px] rounded-2xl overflow-hidden border border-white/10">
           <Map 
             stations={filteredStations} 
             onSelect={(station) => router.push(`/operator/stations/${station.id}`)}
@@ -153,56 +153,56 @@ export default function StationsPage() {
             <Link 
               href={`/operator/stations/${station.id}`}
               key={station.id} 
-              className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-blue-300 hover:shadow-lg hover:shadow-blue-100 block"
+              className="group relative overflow-hidden rounded-2xl border border-white/10 bg-surface-1 p-5 transition hover:border-accent-primary/30 hover:shadow-lg hover:shadow-accent-primary/10 block"
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-600 group-hover:bg-blue-100 group-hover:text-blue-700 transition">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-primary/10 text-accent-primary group-hover:bg-accent-primary/20 transition">
                     <Zap size={20} />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-slate-900">{station.name}</h3>
-                    <div className="flex items-center gap-1 text-xs text-slate-500">
+                    <h3 className="font-semibold text-white">{station.name}</h3>
+                    <div className="flex items-center gap-1 text-xs text-text-tertiary">
                       <MapPin size={12} />
                       <span>{station.lat?.toFixed(4) || 0}, {station.lng?.toFixed(4) || 0}</span>
                     </div>
                   </div>
                 </div>
-                <button className="text-slate-400 hover:text-blue-600">
+                <button className="text-text-tertiary hover:text-accent-primary transition">
                   <Edit size={18} />
                 </button>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="rounded-lg bg-slate-50 p-3">
-                  <p className="text-xs text-slate-500 mb-1">Güç</p>
+                <div className="rounded-lg bg-surface-2 p-3">
+                  <p className="text-xs text-text-tertiary mb-1">Güç</p>
                   <div className="flex items-center gap-1.5">
-                    <Battery size={14} className="text-green-600" />
-                    <span className="text-sm font-medium text-slate-700">{station.power || 22} kW</span>
+                    <Battery size={14} className="text-green-400" />
+                    <span className="text-sm font-medium text-text-secondary">{station.power || 22} kW</span>
                   </div>
                 </div>
-                <div className="rounded-lg bg-slate-50 p-3">
-                  <p className="text-xs text-slate-500 mb-1">Tip</p>
+                <div className="rounded-lg bg-surface-2 p-3">
+                  <p className="text-xs text-text-tertiary mb-1">Tip</p>
                   <div className="flex items-center gap-1.5">
-                    <Zap size={14} className="text-blue-600" />
-                    <span className="text-sm font-medium text-slate-700">{station.type || "AC"}</span>
+                    <Zap size={14} className="text-accent-primary" />
+                    <span className="text-sm font-medium text-text-secondary">{station.type || "AC"}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between border-t border-slate-100 pt-4">
+              <div className="flex items-center justify-between border-t border-white/5 pt-4">
                 <div className="flex items-center gap-2">
                   <span className={`h-2 w-2 rounded-full ${station.status === 'ACTIVE' ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                  <span className="text-xs font-medium text-slate-600">
+                  <span className="text-xs font-medium text-text-secondary">
                     {station.status === 'ACTIVE' ? 'Aktif' : 'Pasif'}
                   </span>
                 </div>
-                <p className="text-sm font-bold text-slate-900">
-                  {station.price} ₺<span className="text-xs font-normal text-slate-500">/kWh</span>
+                <p className="text-sm font-bold text-white">
+                  {station.price} ₺<span className="text-xs font-normal text-text-tertiary">/kWh</span>
                 </p>
               </div>
               
-              <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-blue-600 to-blue-400 opacity-0 transition-opacity group-hover:opacity-100"></div>
+              <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-accent-primary to-accent-secondary opacity-0 transition-opacity group-hover:opacity-100"></div>
             </Link>
           ))}
         </div>

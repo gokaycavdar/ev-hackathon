@@ -9,14 +9,14 @@ export default function OperatorLayout({ children }: { children: React.ReactNode
   const pathname = usePathname();
 
   return (
-    <div className="flex h-screen bg-slate-50 text-slate-900 font-sans">
+    <div className="flex h-screen bg-primary-bg text-primary font-sans overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-20 lg:w-64 bg-white border-r border-slate-200 flex flex-col p-4 shadow-xl shadow-slate-200/50 z-20">
+      <aside className="w-20 lg:w-64 bg-surface-1 border-r border-white/5 flex flex-col p-4 shadow-xl z-20">
         <div className="flex items-center gap-3 font-bold text-xl mb-10 px-2">
-          <div className="h-9 w-9 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
+          <div className="h-9 w-9 rounded-xl bg-accent-primary flex items-center justify-center shadow-lg shadow-accent-primary/20">
              <Zap className="h-5 w-5 text-white fill-white" />
           </div>
-          <span className="hidden lg:block text-slate-900 tracking-tight font-extrabold">Otwatt</span>
+          <span className="hidden lg:block text-white tracking-tight font-display font-extrabold">Otwatt</span>
         </div>
         
         <nav className="space-y-1.5 flex-1">
@@ -24,57 +24,57 @@ export default function OperatorLayout({ children }: { children: React.ReactNode
             href="/operator" 
             className={`group flex items-center gap-3 p-3 rounded-xl transition-all duration-200 font-medium ${
               pathname === "/operator" 
-                ? "bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-200" 
-                : "text-slate-500 hover:bg-slate-50 hover:text-blue-600"
+                ? "bg-accent-primary/10 text-accent-primary shadow-sm ring-1 ring-accent-primary/20" 
+                : "text-text-secondary hover:bg-white/5 hover:text-white"
             }`}
           >
-            <LayoutDashboard size={20} className={pathname === "/operator" ? "text-blue-600" : "group-hover:text-blue-600 transition-colors"} /> 
+            <LayoutDashboard size={20} className={pathname === "/operator" ? "text-accent-primary" : "group-hover:text-accent-primary transition-colors"} /> 
             <span className="hidden lg:block">Panel</span>
           </Link>
           <Link 
             href="/operator/campaigns" 
             className={`group flex items-center gap-3 p-3 rounded-xl transition-all duration-200 font-medium ${
               pathname === "/operator/campaigns" 
-                ? "bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-200" 
-                : "text-slate-500 hover:bg-slate-50 hover:text-blue-600"
+                ? "bg-accent-primary/10 text-accent-primary shadow-sm ring-1 ring-accent-primary/20" 
+                : "text-text-secondary hover:bg-white/5 hover:text-white"
             }`}
           >
-            <Megaphone size={20} className={pathname === "/operator/campaigns" ? "text-blue-600" : "group-hover:text-blue-600 transition-colors"} /> 
+            <Megaphone size={20} className={pathname === "/operator/campaigns" ? "text-accent-primary" : "group-hover:text-accent-primary transition-colors"} /> 
             <span className="hidden lg:block">Kampanyalar</span>
           </Link>
           <Link 
             href="/operator/stations" 
             className={`group flex items-center gap-3 p-3 rounded-xl transition-all duration-200 font-medium ${
               pathname === "/operator/stations" 
-                ? "bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-200" 
-                : "text-slate-500 hover:bg-slate-50 hover:text-blue-600"
+                ? "bg-accent-primary/10 text-accent-primary shadow-sm ring-1 ring-accent-primary/20" 
+                : "text-text-secondary hover:bg-white/5 hover:text-white"
             }`}
           >
-            <Zap size={20} className={pathname === "/operator/stations" ? "text-blue-600" : "group-hover:text-blue-600 transition-colors"} /> 
+            <Zap size={20} className={pathname === "/operator/stations" ? "text-accent-primary" : "group-hover:text-accent-primary transition-colors"} /> 
             <span className="hidden lg:block">İstasyonlar</span>
           </Link>
           <Link 
             href="/operator/settings" 
             className={`group flex items-center gap-3 p-3 rounded-xl transition-all duration-200 font-medium ${
               pathname === "/operator/settings" 
-                ? "bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-200" 
-                : "text-slate-500 hover:bg-slate-50 hover:text-blue-600"
+                ? "bg-accent-primary/10 text-accent-primary shadow-sm ring-1 ring-accent-primary/20" 
+                : "text-text-secondary hover:bg-white/5 hover:text-white"
             }`}
           >
-            <Settings size={20} className={pathname === "/operator/settings" ? "text-blue-600" : "group-hover:text-blue-600 transition-colors"} /> 
+            <Settings size={20} className={pathname === "/operator/settings" ? "text-accent-primary" : "group-hover:text-accent-primary transition-colors"} /> 
             <span className="hidden lg:block">Ayarlar</span>
           </Link>
         </nav>
 
-        <div className="mt-auto pt-4 border-t border-slate-100">
-            <Link href="/" className="group flex items-center gap-3 p-3 hover:bg-red-50 text-slate-500 hover:text-red-600 rounded-xl transition-all font-medium">
-            <LogOut size={20} className="group-hover:text-red-600 transition-colors" /> <span className="hidden lg:block">Çıkış</span>
+        <div className="mt-auto pt-4 border-t border-white/5">
+            <Link href="/" className="group flex items-center gap-3 p-3 hover:bg-red-500/10 text-text-secondary hover:text-red-400 rounded-xl transition-all font-medium">
+            <LogOut size={20} className="group-hover:text-red-400 transition-colors" /> <span className="hidden lg:block">Çıkış</span>
             </Link>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto relative bg-slate-50/50">
+      <main className="flex-1 overflow-y-auto relative">
         {children}
       </main>
     </div>
