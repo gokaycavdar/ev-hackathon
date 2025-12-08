@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Zap, X, Calendar, MapPin, ArrowRight, Sparkles, Clock, BatteryCharging, Coins } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Zap, X, Calendar, MapPin, ArrowRight, Sparkles, Clock, BatteryCharging, Coins, ExternalLink } from "lucide-react";
 
 type GlobalRecommendation = {
   id: number;
@@ -23,6 +24,7 @@ export default function GlobalAIWidget() {
   const [userId, setUserId] = useState<number | null>(null);
   const [bookingId, setBookingId] = useState<number | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const initUser = async () => {
@@ -97,6 +99,11 @@ export default function GlobalAIWidget() {
         });
     }
   }, [isOpen]);
+
+  const handleInspect = (rec: GlobalRecommendation) => {
+    setIsOpen(false);
+    router.push(`/driver?stationId=${rec.stationId}`);
+  };
 
   const handleBook = async (rec: GlobalRecommendation) => {
     // Fallback to demo user ID if not set (for hackathon robustness)
@@ -262,27 +269,36 @@ export default function GlobalAIWidget() {
                           <span className="font-bold text-yellow-400">+{rec.coins} Coin</span>
                         </div>
                         
-                        <button
-                          onClick={() => handleBook(rec)}
-                          disabled={bookingId !== null}
-                          className={`group/btn flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold transition active:scale-95 ${
-                            bookingId === rec.id 
-                              ? "bg-slate-700 text-slate-400 cursor-wait" 
-                              : "bg-white text-black hover:bg-slate-200"
-                          }`}
-                        >
-                          {bookingId === rec.id ? (
-                            <>
-                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />
-                              İşleniyor...
-                            </>
-                          ) : (
-                            <>
-                              Rezerve Et
-                              <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
-                            </>
-                          )}
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleInspect(rec)}
+                            className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-700 text-white transition hover:bg-slate-600 active:scale-95"
+                            title="Haritada Gör"
+                          >
+                            <ExternalLink className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={() => handleBook(rec)}
+                            disabled={bookingId !== null}
+                            className={`group/btn flex flex-1 items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold transition active:scale-95 ${
+                              bookingId === rec.id 
+                                ? "bg-slate-700 text-slate-400 cursor-wait" 
+                                : "bg-white text-black hover:bg-slate-200"
+                            }`}
+                          >
+                            {bookingId === rec.id ? (
+                              <>
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />
+                                İşleniyor...
+                              </>
+                            ) : (
+                              <>
+                                Rezerve Et
+                                <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { BatteryCharging, Leaf, Loader2, Zap, X, PartyPopper, Megaphone, Sparkles, MapPin } from "lucide-react";
 import type { StationMarker } from "@/components/Map";
@@ -38,6 +39,9 @@ export default function DriverDashboard() {
   const [userId, setUserId] = useState<number | null>(null);
   const [toast, setToast] = useState<ToastState>(null);
   const [filterMode, setFilterMode] = useState<"ALL" | "ECO">("ALL");
+
+  const searchParams = useSearchParams();
+  const stationIdParam = searchParams.get("stationId");
 
   useEffect(() => {
     const initUser = async () => {
@@ -140,6 +144,16 @@ export default function DriverDashboard() {
     setSlots([]);
     void fetchSlots(station);
   }, [fetchSlots]);
+
+  useEffect(() => {
+    if (stationIdParam && stations.length > 0) {
+      const sId = parseInt(stationIdParam, 10);
+      const station = stations.find((s) => s.id === sId);
+      if (station) {
+        handleStationSelect(station);
+      }
+    }
+  }, [stationIdParam, stations, handleStationSelect]);
 
   const handleMapClick = useCallback(() => {
     setSelectedStation(null);
