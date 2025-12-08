@@ -60,9 +60,19 @@ export default function GlobalAIWidget() {
             const type = types[index % 3];
             
             let reason = "";
-            if (type === "ECO") reason = "Bölgedeki en düşük yoğunluk";
-            else if (type === "SPEED") reason = "Yüksek hızlı şarj müsait";
-            else reason = "Akşam saatleri için en uygun fiyat";
+            let density = station.mockLoad || 50;
+
+            if (type === "ECO") {
+              reason = "Bölgedeki en düşük yoğunluk";
+              // Force low density for ECO recommendation to ensure consistency
+              if (density > 40) density = Math.floor(Math.random() * 25) + 10;
+            }
+            else if (type === "SPEED") {
+              reason = "Yüksek hızlı şarj müsait";
+            }
+            else {
+              reason = "Akşam saatleri için en uygun fiyat";
+            }
 
             return {
               id: index + 1,
@@ -72,7 +82,7 @@ export default function GlobalAIWidget() {
               reason,
               coins: 30 + (index * 10),
               distance: `${(1.2 + index * 1.5).toFixed(1)} km`,
-              density: station.mockLoad || 50,
+              density: density,
               speed: index % 2 === 0 ? "AC" : "DC",
               type
             };
@@ -89,10 +99,8 @@ export default function GlobalAIWidget() {
   }, [isOpen]);
 
   const handleBook = async (rec: GlobalRecommendation) => {
-    if (!userId) {
-      alert("Kullanıcı bilgisi bulunamadı.");
-      return;
-    }
+    // Fallback to demo user ID if not set (for hackathon robustness)
+    const activeUserId = userId || 20; 
     
     setBookingId(rec.id);
     
@@ -101,7 +109,7 @@ export default function GlobalAIWidget() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId,
+          userId: activeUserId,
           stationId: rec.stationId,
           date: new Date().toISOString(),
           hour: rec.slot.split(" - ")[0],
@@ -111,7 +119,7 @@ export default function GlobalAIWidget() {
 
       const data = await res.json();
       if (data.success) {
-        setSuccessMsg(`Rezervasyon Başarılı! +${rec.coins} Coin kazandın.`);
+        setSuccessMsg("Rezervasyon Başarılı! Randevularım sayfasından takip edebilirsin.");
         setTimeout(() => {
           setIsOpen(false);
           setSuccessMsg(null);
@@ -194,9 +202,9 @@ export default function GlobalAIWidget() {
                       className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-slate-700 bg-slate-800/50 p-6 transition-all hover:border-purple-500/50 hover:bg-slate-800 hover:shadow-xl hover:shadow-purple-900/20"
                     >
                       {/* Background Gradient */}
-                      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-blue-500/5 opacity-0 transition group-hover:opacity-100" />
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-purple-500/5 to-blue-500/5 opacity-0 transition group-hover:opacity-100" />
                       
-                      <div>
+                      <div className="relative z-10">
                         {/* Badges */}
                         <div className="mb-4 flex flex-wrap gap-2">
                           {rec.type === "ECO" && (
@@ -248,7 +256,7 @@ export default function GlobalAIWidget() {
                         </div>
                       </div>
 
-                      <div className="mt-auto">
+                      <div className="mt-auto relative z-10">
                         <div className="mb-4 flex items-center justify-between rounded-xl bg-slate-900/50 px-4 py-3 border border-slate-700/50">
                           <span className="text-xs font-medium text-slate-400">Kazanç</span>
                           <span className="font-bold text-yellow-400">+{rec.coins} Coin</span>

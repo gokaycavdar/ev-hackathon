@@ -135,7 +135,8 @@ export default function DriverDashboard() {
 
   const handleStationSelect = useCallback((station: StationMarker) => {
     setSelectedStation(station);
-    setIsDetailsOpen(false);
+    // Automatically open details when selected from map popup or sidebar
+    setIsDetailsOpen(true);
     setSlots([]);
     void fetchSlots(station);
   }, [fetchSlots]);
@@ -270,91 +271,7 @@ export default function DriverDashboard() {
         <Map stations={stations} onSelect={handleStationSelect} onMapClick={handleMapClick} />
       </div>
 
-      {/* Small Station Preview Card */}
-      {selectedStation && !isDetailsOpen && (
-        <div className="absolute bottom-8 left-1/2 z-40 w-full max-w-sm -translate-x-1/2 px-4 animate-in slide-in-from-bottom-4 duration-300">
-          <div className="relative overflow-hidden rounded-3xl border border-slate-600 bg-slate-800/95 p-5 shadow-2xl backdrop-blur-xl ring-1 ring-white/10">
-            {/* Close Button */}
-            <button 
-              onClick={() => setSelectedStation(null)}
-              className="absolute right-4 top-4 text-slate-400 hover:text-white transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
-
-            {/* Header */}
-            <div className="mb-4 flex items-start gap-4">
-              <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border shadow-lg ${
-                selectedStation.mockStatus === "RED" ? "border-red-500/30 bg-red-500/20 text-red-400" :
-                selectedStation.mockStatus === "YELLOW" ? "border-yellow-500/30 bg-yellow-500/20 text-yellow-400" :
-                "border-green-500/30 bg-green-500/20 text-green-400"
-              }`}>
-                <Zap className="h-6 w-6" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-white leading-tight">{selectedStation.name}</h3>
-                <div className="mt-1 flex items-center gap-2">
-                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border ${
-                    selectedStation.mockStatus === "RED" ? "bg-red-500/10 text-red-400 border-red-500/20" :
-                    selectedStation.mockStatus === "YELLOW" ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" :
-                    "bg-green-500/10 text-green-400 border-green-500/20"
-                  }`}>
-                    {selectedStation.mockStatus === "RED" ? "Yüksek" : selectedStation.mockStatus === "YELLOW" ? "Orta" : "Düşük"} Yoğunluk
-                  </span>
-                  <span className="text-xs text-slate-400">%{selectedStation.mockLoad || 0} Dolu</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Mini Grid */}
-            <div className="mb-4 grid grid-cols-3 gap-2">
-              <div className="rounded-xl bg-slate-900/50 p-2 text-center border border-slate-700/50">
-                <div className="text-[10px] text-slate-400 uppercase tracking-wider">Güç</div>
-                <div className="font-bold text-white">{selectedStation.id % 2 === 0 ? "120 kW" : "180 kW"}</div>
-              </div>
-              <div className="rounded-xl bg-slate-900/50 p-2 text-center border border-slate-700/50">
-                <div className="text-[10px] text-slate-400 uppercase tracking-wider">Mesafe</div>
-                <div className="font-bold text-white">{(1.2 + (selectedStation.id % 5) * 0.4).toFixed(1)} km</div>
-              </div>
-              <div className="rounded-xl bg-slate-900/50 p-2 text-center border border-slate-700/50">
-                <div className="text-[10px] text-slate-400 uppercase tracking-wider">Fiyat</div>
-                <div className="font-bold text-white">{selectedStation.price} ₺</div>
-              </div>
-            </div>
-
-            {/* AI Suggestion */}
-            {bestSlotPreview && (
-              <div className="mb-4 rounded-xl border border-purple-500/30 bg-gradient-to-r from-purple-900/20 to-blue-900/20 p-3">
-                <div className="flex items-center gap-2 text-xs font-bold text-purple-300 mb-1">
-                  <Sparkles className="h-3 w-3" /> AI Önerisi
-                </div>
-                <p className="text-xs text-slate-300">
-                  En verimli saat: <span className="text-white font-bold">{bestSlotPreview.time}</span> <span className="text-yellow-400 font-bold">(+{bestSlotPreview.xp} XP)</span>
-                </p>
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="grid grid-cols-2 gap-3">
-              <button 
-                onClick={() => setIsDetailsOpen(true)}
-                className="rounded-xl bg-slate-700 py-3 text-sm font-bold text-white hover:bg-slate-600 transition-colors"
-              >
-                Detayları Gör
-              </button>
-              <button 
-                onClick={() => {
-                  setIsDetailsOpen(true);
-                  // Optional: We could auto-scroll or highlight the best slot here
-                }}
-                className="rounded-xl bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-500 transition-colors shadow-lg shadow-blue-600/20"
-              >
-                Hızlı Rezerve
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Small Station Preview Card - REMOVED (Moved to Map Popup) */}
 
       {selectedStation && isDetailsOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 py-8 backdrop-blur-md animate-in fade-in duration-200">
@@ -538,6 +455,8 @@ export default function DriverDashboard() {
                           const altStation = stations.find(s => s.id === 105) || stations.find(s => s.id !== selectedStation.id);
                           if (altStation) {
                             handleStationSelect(altStation);
+                            // Force open the modal for the new station so the user sees details immediately
+                            setTimeout(() => setIsDetailsOpen(true), 50);
                           }
                         }}
                         className="group flex cursor-pointer items-center gap-4 rounded-2xl border border-slate-700 bg-slate-800/50 p-4 transition-all hover:border-green-500/50 hover:bg-slate-800 hover:shadow-lg hover:shadow-green-900/20"

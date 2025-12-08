@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, Fragment } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
 import type { LatLngExpression } from "leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { Zap, MapPin } from "lucide-react";
 
 let iconPatched = false;
 function patchLeafletIcons() {
@@ -103,28 +104,57 @@ export default function Map({ stations, onSelect, onMapClick, initialCenter, zoo
               <Marker 
                 position={[station.lat, station.lng] as LatLngExpression}
                 icon={customIcon}
-                eventHandlers={{ click: () => onSelect(station) }}
+                // We remove the click handler here because the Popup handles the click
+                // eventHandlers={{ click: () => onSelect(station) }}
               >
-                <Popup>
-                  <div className="space-y-1 text-center text-slate-900 min-w-[150px]">
-                    <p className="text-sm font-semibold">{station.name}</p>
-                    <p className="text-xs text-slate-600">{station.ownerName ?? "EcoCharge Partner"}</p>
-                    <p className="text-xs font-medium">{station.price.toFixed(2)} ₺/kWh</p>
-                    <div className="mt-1 flex justify-center">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full text-white ${
-                        status === "RED" ? "bg-red-500" : 
-                        status === "YELLOW" ? "bg-yellow-500" : 
-                        "bg-green-500"
+                <Popup className="custom-popup" minWidth={280} maxWidth={320}>
+                  <div className="p-1">
+                    {/* Header */}
+                    <div className="mb-3 flex items-start gap-3">
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${
+                        status === "RED" ? "border-red-100 bg-red-50 text-red-500" :
+                        status === "YELLOW" ? "border-yellow-100 bg-yellow-50 text-yellow-500" :
+                        "border-green-100 bg-green-50 text-green-500"
                       }`}>
-                        %{load} Yoğunluk
-                      </span>
+                        <Zap className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-slate-900 leading-tight">{station.name}</h3>
+                        <div className="mt-1 flex items-center gap-2">
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border ${
+                            status === "RED" ? "bg-red-50 text-red-600 border-red-100" :
+                            status === "YELLOW" ? "bg-yellow-50 text-yellow-600 border-yellow-100" :
+                            "bg-green-50 text-green-600 border-green-100"
+                          }`}>
+                            {status === "RED" ? "Yüksek" : status === "YELLOW" ? "Orta" : "Düşük"} Yoğunluk
+                          </span>
+                          <span className="text-xs text-slate-500">%{load} Dolu</span>
+                        </div>
+                      </div>
                     </div>
-                    <button
-                      className="mt-2 w-full rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-500 transition"
+
+                    {/* Mini Grid */}
+                    <div className="mb-3 grid grid-cols-3 gap-2">
+                      <div className="rounded-lg bg-slate-50 p-2 text-center border border-slate-100">
+                        <div className="text-[9px] text-slate-400 uppercase tracking-wider font-semibold">Güç</div>
+                        <div className="font-bold text-slate-700 text-xs">{station.id % 2 === 0 ? "120 kW" : "180 kW"}</div>
+                      </div>
+                      <div className="rounded-lg bg-slate-50 p-2 text-center border border-slate-100">
+                        <div className="text-[9px] text-slate-400 uppercase tracking-wider font-semibold">Mesafe</div>
+                        <div className="font-bold text-slate-700 text-xs">{(1.2 + (station.id % 5) * 0.4).toFixed(1)} km</div>
+                      </div>
+                      <div className="rounded-lg bg-slate-50 p-2 text-center border border-slate-100">
+                        <div className="text-[9px] text-slate-400 uppercase tracking-wider font-semibold">Fiyat</div>
+                        <div className="font-bold text-slate-700 text-xs">{station.price} ₺</div>
+                      </div>
+                    </div>
+
+                    {/* Action */}
+                    <button 
                       onClick={() => onSelect(station)}
-                      type="button"
+                      className="w-full rounded-lg bg-blue-600 py-2.5 text-xs font-bold text-white hover:bg-blue-700 transition-colors shadow-md shadow-blue-600/10 flex items-center justify-center gap-2"
                     >
-                      Slotları Gör
+                      Saatleri Gör & Rezerve Et
                     </button>
                   </div>
                 </Popup>
