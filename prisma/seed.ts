@@ -1,5 +1,7 @@
 // prisma/seed.ts
 import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcryptjs'
+
 const prisma = new PrismaClient()
 
 async function main() {
@@ -12,6 +14,9 @@ async function main() {
   await prisma.station.deleteMany()
   await prisma.badge.deleteMany()
   await prisma.user.deleteMany()
+
+  // Şifreleri hash'le
+  const defaultPassword = await bcrypt.hash('demo123', 10)
 
   // 2. Rozetleri (Gamification) Ekle
   const badgeNight = await prisma.badge.create({
@@ -33,12 +38,13 @@ async function main() {
   const badgeLongHauler = await prisma.badge.create({
     data: { name: "Uzun Yolcu", description: "Şehirlerarası istasyonlarda şarj et", icon: "🛣️" }
   })
-  
+
   // 3. Firma Hesabı Oluştur (Operator)
   const company = await prisma.user.create({
     data: {
       name: "Zorlu Enerji",
       email: "info@zorlu.com",
+      password: defaultPassword,
       role: "OPERATOR",
     }
   })
@@ -48,10 +54,15 @@ async function main() {
     data: {
       name: "Hackathon Sürücü",
       email: "driver@test.com",
+      password: defaultPassword,
       role: "DRIVER",
       badges: { connect: [{ id: badgeNight.id }, { id: badgeEco.id }, { id: badgeWeekend.id }, { id: badgeEarlyBird.id }] }
     }
   })
+
+  console.log('📝 Demo kullanıcılar oluşturuldu:')
+  console.log('   Sürücü: driver@test.com / demo123')
+  console.log('   Operatör: info@zorlu.com / demo123')
 
   // 5. İstasyonları Ekle (HARİTADA GÖRÜNECEK NOKTALAR 📍)
   await prisma.station.createMany({
@@ -101,7 +112,7 @@ async function main() {
       { name: "Manisa Kent Park", lat: 38.612, lng: 27.415, ownerId: company.id, price: 7.2, address: "Kent Park, Manisa", density: 75 },
       { name: "Manisa Ulupark", lat: 38.614, lng: 27.428, ownerId: company.id, price: 7.0, address: "Ulupark, Manisa", density: 85 },
       { name: "Manisa Fatih Parkı", lat: 38.610, lng: 27.430, ownerId: company.id, price: 6.8, address: "Fatih Parkı, Manisa", density: 50 },
-      
+
       // İzmir & Çevre (Referans noktaları)
       { name: "İzmir Bornova DC", lat: 38.460, lng: 27.220, ownerId: company.id, price: 9.0, address: "Bornova Merkez, İzmir", density: 95 },
       { name: "Alsancak Liman", lat: 38.435, lng: 27.150, ownerId: company.id, price: 10.0, address: "Alsancak Liman Cad., İzmir", density: 80 },

@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Zap, MapPin, Trophy, Building2, ArrowRight, CheckCircle2, X } from "lucide-react";
+import { Loader2, Zap, MapPin, Trophy, Building2, ArrowRight, CheckCircle2, X, Lock, User } from "lucide-react";
 
 type LoginResponse = {
 	user?: {
@@ -13,15 +13,13 @@ type LoginResponse = {
 	error?: string;
 };
 
-const DEMO_EMAILS = {
-	driver: "driver@test.com",
-	operator: "info@otowatt.com",
-};
-
 export default function AuthLandingPage() {
 	const router = useRouter();
 	const [showLogin, setShowLogin] = useState(false);
+	const [mode, setMode] = useState<"login" | "register">("login");
+	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
+	const [password, setPassword] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -29,8 +27,6 @@ export default function AuthLandingPage() {
 	const predictedRole = useMemo(() => {
 		const e = email.trim().toLowerCase();
 		if (!e || !e.includes("@")) return null;
-		if (e === DEMO_EMAILS.driver) return "Sürücü";
-		if (e === DEMO_EMAILS.operator) return "Operatör";
 		const domain = e.split("@")[1];
 		if (!domain) return null;
 		const consumerDomains = ["gmail.com", "outlook.com", "hotmail.com", "yahoo.com", "icloud.com", "proton.me", "protonmail.com"];
@@ -40,10 +36,18 @@ export default function AuthLandingPage() {
 		return "Sürücü";
 	}, [email]);
 
-	const handleSubmit = async (targetEmail?: string) => {
-		const payloadEmail = (targetEmail ?? email).trim().toLowerCase();
-		if (!payloadEmail) {
-			setError("Lütfen e-posta adresinizi girin");
+	const handleSubmit = async (event?: React.FormEvent) => {
+		if (event) event.preventDefault();
+
+		const payloadEmail = email.trim().toLowerCase();
+
+		if (!payloadEmail || !password) {
+			setError("Email ve şifre gerekli");
+			return;
+		}
+
+		if (mode === "register" && !name) {
+			setError("İsim gerekli");
 			return;
 		}
 
@@ -51,16 +55,21 @@ export default function AuthLandingPage() {
 			setIsSubmitting(true);
 			setError(null);
 
-			const response = await fetch("/api/auth/login", {
+			const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/register";
+			const body = mode === "login"
+				? { email: payloadEmail, password }
+				: { name, email: payloadEmail, password };
+
+			const response = await fetch(endpoint, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ email: payloadEmail }),
+				body: JSON.stringify(body),
 			});
 
 			const data: LoginResponse = await response.json();
 
 			if (!response.ok || !data.user) {
-				throw new Error(data.error ?? "Giriş başarısız");
+				throw new Error(data.error ?? `${mode === "login" ? "Giriş" : "Kayıt"} başarısız`);
 			}
 
 			if (typeof window !== "undefined") {
@@ -71,7 +80,7 @@ export default function AuthLandingPage() {
 
 			router.push(data.user.role === "OPERATOR" ? "/operator" : "/driver");
 		} catch (err) {
-			const message = err instanceof Error ? err.message : "Giriş sırasında hata oluştu";
+			const message = err instanceof Error ? err.message : `${mode === "login" ? "Giriş" : "Kayıt"} sırasında hata oluştu`;
 			setError(message);
 		} finally {
 			setIsSubmitting(false);
@@ -88,16 +97,16 @@ export default function AuthLandingPage() {
 
 			<div className="relative z-10 w-full max-w-6xl px-6 py-12 text-center">
 				<div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
-					
+
 					<h1 className="mb-6 text-5xl font-extrabold tracking-tight sm:text-7xl font-display text-primary">
 						SmartCharge <br />
 						<span className="text-gradient">
 							Akıllı Şarjın Geleceği
 						</span>
 					</h1>
-					
+
 					<p className="mx-auto mb-10 max-w-2xl text-lg text-secondary leading-relaxed">
-						Yapay zeka destekli önerilerle en verimli saatlerde şarj et, 
+						Yapay zeka destekli önerilerle en verimli saatlerde şarj et,
 						oyunlaştırma ile kazan. Elektrikli araç deneyimini SmartCharge ile dönüştür.
 					</p>
 
@@ -146,23 +155,50 @@ export default function AuthLandingPage() {
 					{showLogin && (
 						<div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
 							{/* Backdrop */}
-							<div 
+							<div
 								className="absolute inset-0 bg-black/60 backdrop-blur-sm"
 								onClick={() => setShowLogin(false)}
 							/>
-							
+
 							{/* Modal Content */}
 							<div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-primary/10 bg-surface-1 p-8 shadow-2xl animate-in zoom-in-95 duration-200">
-								<button 
-									onClick={() => setShowLogin(false)}
+								<button
+									onClick={() => {
+										setShowLogin(false);
+										setMode("login");
+										setError(null);
+									}}
 									className="absolute right-4 top-4 text-secondary hover:text-primary transition"
 								>
 									<X className="h-5 w-5" />
 								</button>
-								
-								<h2 className="mb-6 text-2xl font-bold text-primary">Giriş Yap</h2>
-								
-								<div className="space-y-4">
+
+								<h2 className="mb-2 text-2xl font-bold text-primary">
+									{mode === "login" ? "Giriş Yap" : "Kayıt Ol"}
+								</h2>
+								<p className="mb-6 text-xs text-secondary">
+									{mode === "login" ? "Hesabınıza giriş yapın" : "Yeni hesap oluşturun"}
+								</p>
+
+								<form onSubmit={handleSubmit} className="space-y-4">
+									{mode === "register" && (
+										<div>
+											<label htmlFor="name" className="sr-only">İsim</label>
+											<div className="relative">
+												<User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-secondary" />
+												<input
+													id="name"
+													type="text"
+													placeholder="Adınız Soyadınız"
+													value={name}
+													onChange={(e) => setName(e.target.value)}
+													className="w-full rounded-xl border border-primary/10 bg-surface-2/50 px-4 py-3 pl-10 text-primary placeholder-text-secondary focus:border-accent-primary focus:outline-none focus:ring-1 focus:ring-accent-primary transition"
+													required
+												/>
+											</div>
+										</div>
+									)}
+
 									<div>
 										<label htmlFor="email" className="sr-only">E-posta</label>
 										<input
@@ -172,30 +208,33 @@ export default function AuthLandingPage() {
 											value={email}
 											onChange={(e) => setEmail(e.target.value)}
 											className="w-full rounded-xl border border-primary/10 bg-surface-2/50 px-4 py-3 text-primary placeholder-text-secondary focus:border-accent-primary focus:outline-none focus:ring-1 focus:ring-accent-primary transition"
-											onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-											autoFocus
+											required
+											autoFocus={mode === "login"}
 										/>
-										{predictedRole && (
+										{predictedRole && mode === "register" && (
 											<p className="mt-2 flex items-center gap-1.5 text-xs text-accent-primary">
 												<CheckCircle2 className="h-3 w-3" />
-												{predictedRole} olarak algılandı
+												{predictedRole} rolü tespit edildi
 											</p>
 										)}
 									</div>
 
-									<button
-										onClick={() => handleSubmit()}
-										disabled={isSubmitting}
-										className="w-full rounded-xl bg-accent-primary py-3 font-bold text-white transition hover:bg-accent-hover disabled:opacity-50 shadow-lg shadow-accent-primary/20"
-									>
-										{isSubmitting ? (
-											<span className="flex items-center justify-center gap-2">
-												<Loader2 className="h-4 w-4 animate-spin" /> Giriş Yapılıyor...
-											</span>
-										) : (
-											"Devam Et"
-										)}
-									</button>
+									<div>
+										<label htmlFor="password" className="sr-only">Şifre</label>
+										<div className="relative">
+											<Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-secondary" />
+											<input
+												id="password"
+												type="password"
+												placeholder={mode === "register" ? "En az 6 karakter" : "••••••••"}
+												value={password}
+												onChange={(e) => setPassword(e.target.value)}
+												className="w-full rounded-xl border border-primary/10 bg-surface-2/50 px-4 py-3 pl-10 text-primary placeholder-text-secondary focus:border-accent-primary focus:outline-none focus:ring-1 focus:ring-accent-primary transition"
+												required
+												minLength={6}
+											/>
+										</div>
+									</div>
 
 									{error && (
 										<div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-600 border border-red-500/20">
@@ -203,31 +242,48 @@ export default function AuthLandingPage() {
 										</div>
 									)}
 
-									<div className="relative py-2">
-										<div className="absolute inset-0 flex items-center"><div className="w-full border-t border-primary/10"></div></div>
-										<div className="relative flex justify-center"><span className="bg-surface-1 px-2 text-xs text-secondary">veya demo hesap seç</span></div>
+									<button
+										type="submit"
+										disabled={isSubmitting}
+										className="w-full rounded-xl bg-accent-primary py-3 font-bold text-white transition hover:bg-accent-hover disabled:opacity-50 shadow-lg shadow-accent-primary/20"
+									>
+										{isSubmitting ? (
+											<span className="flex items-center justify-center gap-2">
+												<Loader2 className="h-4 w-4 animate-spin" /> {mode === "login" ? "Giriş yapılıyor..." : "Kayıt yapılıyor..."}
+											</span>
+										) : (
+											mode === "login" ? "Giriş Yap" : "Kayıt Ol"
+										)}
+									</button>
+
+									<div className="text-center">
+										<button
+											type="button"
+											onClick={() => {
+												setMode(mode === "login" ? "register" : "login");
+												setError(null);
+											}}
+											className="text-xs text-secondary hover:text-accent-primary transition"
+										>
+											{mode === "login" ? "Hesabınız yok mu? Kayıt olun" : "Zaten hesabınız var mı? Giriş yapın"}
+										</button>
 									</div>
 
-									<div className="grid grid-cols-2 gap-3">
-										<button
-											onClick={() => handleSubmit(DEMO_EMAILS.driver)}
-											className="rounded-xl border border-primary/10 bg-surface-2 py-2 text-xs font-medium text-secondary hover:bg-surface-3 hover:text-primary transition"
-										>
-											Sürücü Demo
-										</button>
-										<button
-											onClick={() => handleSubmit(DEMO_EMAILS.operator)}
-											className="rounded-xl border border-primary/10 bg-surface-2 py-2 text-xs font-medium text-secondary hover:bg-surface-3 hover:text-primary transition"
-										>
-											Operatör Demo
-										</button>
-									</div>
-								</div>
+									{mode === "login" && (
+										<div className="mt-4 p-3 bg-surface-2/50 rounded-lg border border-primary/10">
+											<p className="text-[10px] text-secondary leading-relaxed">
+												<strong className="text-primary">Demo hesaplar:</strong><br />
+												Sürücü: driver@test.com / demo123<br />
+												Operatör: info@zorlu.com / demo123
+											</p>
+										</div>
+									)}
+								</form>
 							</div>
 						</div>
 					)}
 				</div>
-				
+
 				{/* Footer */}
 				<footer className="absolute bottom-6 text-center text-xs text-tertiary">
 					&copy; 2025 SmartCharge. All rights reserved.

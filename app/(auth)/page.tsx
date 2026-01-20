@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Mail, Rocket, Lock, ArrowRight } from "lucide-react";
+import { Loader2, Mail, Rocket, Lock, ArrowRight, User } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 
 type LoginResponse = {
@@ -14,38 +14,40 @@ type LoginResponse = {
 	error?: string;
 };
 
-const DEMO_EMAILS = {
-	driver: "driver@test.com",
-	operator: "info@zorlu.com",
-};
-
 export default function AuthLandingPage() {
 	const router = useRouter();
+	const [mode, setMode] = useState<"login" | "register">("login");
+	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
+	const [password, setPassword] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	// Predict role based on email domain or known demo emails
+	// Predict role based on email domain
 	const predictedRole = useMemo(() => {
 		const e = email.trim().toLowerCase();
 		if (!e || !e.includes("@")) return null;
-		if (e === DEMO_EMAILS.driver) return "Sürücü";
-		if (e === DEMO_EMAILS.operator) return "Operatör";
 		const domain = e.split("@")[1];
 		if (!domain) return null;
-		// Simple heuristic: corporate domains treated as operator if not generic mail providers
-		const consumerDomains = ["gmail.com", "outlook.com", "hotmail.com", "yahoo.com", "icloud.com", "proton.me", "protonmail.com"];
+		const consumerDomains = ["gmail.com", "outlook.com", "hotmail.com", "yahoo.com", "icloud.com"];
 		if (consumerDomains.includes(domain)) return "Sürücü";
-		// If domain contains keywords
-		const operatorHints = ["enerji", "energy", "power", "elektrik", "grid", "charge", "ev", "zorlu", "shell", "bp", "tesla"];
+		const operatorHints = ["enerji", "energy", "power", "elektrik", "zorlu", "shell", "bp"];
 		if (operatorHints.some((k) => domain.includes(k))) return "Operatör";
-		return "Sürücü"; // default lean to driver perspective for UX
+		return "Sürücü";
 	}, [email]);
 
-	const handleSubmit = async (targetEmail?: string) => {
-		const payloadEmail = (targetEmail ?? email).trim().toLowerCase();
-		if (!payloadEmail) {
-			setError("Lütfen e-posta adresinizi girin");
+	const handleSubmit = async (event?: React.FormEvent) => {
+		if (event) event.preventDefault();
+
+		const payloadEmail = email.trim().toLowerCase();
+
+		if (!payloadEmail || !password) {
+			setError("Email ve şifre gerekli");
+			return;
+		}
+
+		if (mode === "register" && !name) {
+			setError("İsim gerekli");
 			return;
 		}
 
@@ -53,16 +55,21 @@ export default function AuthLandingPage() {
 			setIsSubmitting(true);
 			setError(null);
 
-			const response = await fetch("/api/auth/login", {
+			const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/register";
+			const body = mode === "login"
+				? { email: payloadEmail, password }
+				: { name, email: payloadEmail, password };
+
+			const response = await fetch(endpoint, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ email: payloadEmail }),
+				body: JSON.stringify(body),
 			});
 
 			const data: LoginResponse = await response.json();
 
 			if (!response.ok || !data.user) {
-				throw new Error(data.error ?? "Giriş başarısız");
+				throw new Error(data.error ?? `${mode === "login" ? "Giriş" : "Kayıt"} başarısız`);
 			}
 
 			if (typeof window !== "undefined") {
@@ -73,7 +80,7 @@ export default function AuthLandingPage() {
 
 			router.push(data.user.role === "OPERATOR" ? "/operator" : "/driver");
 		} catch (err) {
-			const message = err instanceof Error ? err.message : "Giriş sırasında hata oluştu";
+			const message = err instanceof Error ? err.message : `${mode === "login" ? "Giriş" : "Kayıt"} sırasında hata oluştu`;
 			setError(message);
 		} finally {
 			setIsSubmitting(false);
@@ -136,17 +143,35 @@ export default function AuthLandingPage() {
 
 						<section className="rounded-3xl border border-slate-600/70 bg-slate-800/80 p-7 shadow-lg backdrop-blur-xl">
 							<h2 className="flex items-center gap-2 text-lg font-semibold">
-								<Lock className="h-4 w-4 text-blue-400" /> Giriş Yap
+								<Lock className="h-4 w-4 text-blue-400" /> {mode === "login" ? "Giriş Yap" : "Kayıt Ol"}
 							</h2>
-							<p className="mt-1 text-xs text-slate-300">Hızlı demo için e-posta gir veya aşağıdan seç.</p>
+							<p className="mt-1 text-xs text-slate-300">
+								{mode === "login"
+									? "Hesabınıza giriş yapın"
+									: "Yeni hesap oluşturun"}
+							</p>
 
 							<form
 								className="mt-6 space-y-4"
-								onSubmit={(event) => {
-									event.preventDefault();
-									void handleSubmit();
-								}}
+								onSubmit={handleSubmit}
 							>
+								{mode === "register" && (
+									<label className="flex flex-col gap-2 text-xs font-medium text-slate-200">
+										İsim
+										<div className="relative">
+											<User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+											<input
+												className="w-full rounded-xl border border-slate-600 bg-slate-700/80 py-3 pl-10 pr-4 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
+												type="text"
+												placeholder="Adınız Soyadınız"
+												value={name}
+												onChange={(event) => setName(event.target.value)}
+												required
+											/>
+										</div>
+									</label>
+								)}
+
 								<label className="flex flex-col gap-2 text-xs font-medium text-slate-200">
 									Email
 									<div className="relative">
@@ -154,17 +179,34 @@ export default function AuthLandingPage() {
 										<input
 											className="w-full rounded-xl border border-slate-600 bg-slate-700/80 py-3 pl-10 pr-4 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
 											type="email"
-											placeholder="driver@test.com"
+											placeholder="ornek@email.com"
 											value={email}
 											onChange={(event) => setEmail(event.target.value)}
 											required
 										/>
 									</div>
 								</label>
-								{predictedRole ? (
+
+								<label className="flex flex-col gap-2 text-xs font-medium text-slate-200">
+									Şifre
+									<div className="relative">
+										<Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+										<input
+											className="w-full rounded-xl border border-slate-600 bg-slate-700/80 py-3 pl-10 pr-4 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
+											type="password"
+											placeholder={mode === "register" ? "En az 6 karakter" : "••••••••"}
+											value={password}
+											onChange={(event) => setPassword(event.target.value)}
+											required
+											minLength={6}
+										/>
+									</div>
+								</label>
+
+								{predictedRole && mode === "register" ? (
 									<p className="mt-1 flex items-center gap-2 text-[11px] text-slate-400">
-										<span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide ${predictedRole === "Operatör" ? "bg-purple-500/15 text-purple-300 border border-purple-400/30" : "bg-green-500/15 text-green-300 border border-green-400/30"}`}>{predictedRole} rolü tahmini</span>
-										{predictedRole === "Operatör" ? "Kurumsal alan adı tespit edildi." : "Genel e-posta sağlayıcısı algılandı."}
+										<span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide ${predictedRole === "Operatör" ? "bg-purple-500/15 text-purple-300 border border-purple-400/30" : "bg-green-500/15 text-green-300 border border-green-400/30"}`}>{predictedRole} rolü</span>
+										{predictedRole === "Operatör" ? "Kurumsal alan adı tespit edildi." : "Bireysel hesap olarak kaydedilecek."}
 									</p>
 								) : null}
 
@@ -176,39 +218,34 @@ export default function AuthLandingPage() {
 									disabled={isSubmitting}
 								>
 									{isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-									{isSubmitting ? "Giriş yapılıyor" : "Login"}
+									{isSubmitting ? (mode === "login" ? "Giriş yapılıyor..." : "Kayıt yapılıyor...") : (mode === "login" ? "Giriş Yap" : "Kayıt Ol")}
 								</button>
 							</form>
 
-							<div className="mt-6 space-y-3 text-xs">
-								<p className="text-center text-slate-400">Hızlı demo erişimi</p>
-								<div className="grid gap-3">
-									<button
-										className="group rounded-xl border border-slate-700/70 bg-gradient-to-r from-green-600/20 to-green-500/10 px-4 py-3 font-semibold text-green-300 transition hover:border-green-400/40 hover:from-green-600/30 hover:to-green-500/20"
-										onClick={() => {
-											setEmail(DEMO_EMAILS.driver);
-											void handleSubmit(DEMO_EMAILS.driver);
-										}}
-										type="button"
-									>
-										<span className="flex items-center justify-center gap-2"><ArrowRight className="h-4 w-4" /> Sürücü Demo</span>
-									</button>
-									<button
-										className="group rounded-xl border border-slate-700/70 bg-gradient-to-r from-purple-600/25 to-blue-600/15 px-4 py-3 font-semibold text-purple-300 transition hover:border-purple-400/40 hover:from-purple-600/35 hover:to-blue-600/25"
-										onClick={() => {
-											setEmail(DEMO_EMAILS.operator);
-											void handleSubmit(DEMO_EMAILS.operator);
-										}}
-										type="button"
-									>
-										<span className="flex items-center justify-center gap-2"><ArrowRight className="h-4 w-4" /> Operatör Demo</span>
-									</button>
-								</div>
-									<p className="mt-4 text-[10px] leading-relaxed text-slate-500">
-										Rol ataması demo amaçlıdır. Gerçek ürün versiyonunda kurumsal kimlik doğrulama, istasyon sahipliği doğrulaması ve
-										çok faktörlü erişim kontrolü eklenecektir.
-									</p>
+							<div className="mt-6 text-center">
+								<button
+									className="text-xs text-slate-400 hover:text-blue-400 transition"
+									onClick={() => {
+										setMode(mode === "login" ? "register" : "login");
+										setError(null);
+									}}
+									type="button"
+								>
+									{mode === "login"
+										? "Hesabınız yok mu? Kayıt olun"
+										: "Zaten hesabınız var mı? Giriş yapın"}
+								</button>
 							</div>
+
+							{mode === "login" && (
+								<div className="mt-4 p-3 bg-slate-700/40 rounded-lg border border-slate-600/50">
+									<p className="text-[10px] text-slate-400 leading-relaxed">
+										<strong>Demo hesaplar:</strong><br />
+										Sürücü: driver@test.com / demo123<br />
+										Operatör: info@zorlu.com / demo123
+									</p>
+								</div>
+							)}
 						</section>
 					</div>
 				</div>

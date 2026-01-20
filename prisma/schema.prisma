@@ -13,6 +13,7 @@ model User {
   id        Int      @id @default(autoincrement())
   name      String
   email     String   @unique
+  password  String   // Hash'lenmiş şifre
   role      String   @default("DRIVER") // "DRIVER" | "OPERATOR"
   
   // Gamification & Stats
@@ -25,6 +26,9 @@ model User {
   stations     Station[]
   badges       Badge[]       // Kazanılan rozetler
   campaigns    Campaign[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Campaign {

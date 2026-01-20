@@ -1,14 +1,21 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const rawEmail = typeof body?.email === "string" ? body.email : "";
-    const email = rawEmail.trim().toLowerCase();
+    const rawPassword = typeof body?.password === "string" ? body.password : "";
 
-    if (!email) {
-      return NextResponse.json({ error: "E-posta gerekli" }, { status: 400 });
+    const email = rawEmail.trim().toLowerCase();
+    const password = rawPassword;
+
+    if (!email || !password) {
+      return NextResponse.json(
+        { error: "Email ve şifre gerekli" },
+        { status: 400 }
+      );
     }
 
     const user = await prisma.user.findUnique({
@@ -20,7 +27,20 @@ export async function POST(req: Request) {
     });
 
     if (!user) {
-      return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Email veya şifre hatalı" },
+        { status: 401 }
+      );
+    }
+
+    // Şifre kontrolü
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return NextResponse.json(
+        { error: "Email veya şifre hatalı" },
+        { status: 401 }
+      );
     }
 
     type BadgeRecord = (typeof user.badges)[number];
