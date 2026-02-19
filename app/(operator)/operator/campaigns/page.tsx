@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { Megaphone, Plus, Calendar, Users, ArrowRight, Edit2, Trash2, X, Save, Tag, Clock, AlertCircle, Sparkles, TrendingDown, Zap, Target, BarChart3, Award } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Megaphone, Plus, Calendar, Users, Edit2, Trash2, X, Save, Tag, Clock, Award } from "lucide-react";
+import { authFetch, unwrapResponse } from "@/lib/auth";
 
 type Badge = {
   id: number;
@@ -27,7 +28,6 @@ type Campaign = {
 type Station = {
   id: number;
   name: string;
-  mockStatus?: "GREEN" | "YELLOW" | "RED";
 };
 
 export default function CampaignsPage() {
@@ -38,63 +38,6 @@ export default function CampaignsPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedBadgeIds, setSelectedBadgeIds] = useState<number[]>([]);
-
-  // AI Recommendations Logic
-  const recommendations = useMemo(() => {
-    if (stations.length === 0) return [];
-
-    const recs = [];
-
-    // 1. Low Density Recommendation
-    const lowDensityStations = stations.filter(s => s.mockStatus === "GREEN");
-    if (lowDensityStations.length > 0) {
-      recs.push({
-        id: 1,
-        type: "DENSITY",
-        title: "Düşük Yoğunluk Fırsatı",
-        station: lowDensityStations[0],
-        reason: "Bu istasyonun kullanım oranı %30'un altında. Trafiği artırmak için indirim tanımlayın.",
-        stat: "%24 Kullanım",
-        icon: TrendingDown,
-        color: "blue",
-        suggestedDiscount: "%15"
-      });
-    }
-
-    // 2. Idle Station Recommendation (Mock)
-    const idleStation = stations.find(s => s.id % 2 === 0) || stations[0];
-    if (idleStation) {
-      recs.push({
-        id: 2,
-        type: "IDLE",
-        title: "Hareketsiz İstasyon",
-        station: idleStation,
-        reason: "Son 48 saatte rezervasyon hacmi düşük. Kullanıcıları çekmek için kampanya başlatın.",
-        stat: "📉 Düşük Hacim",
-        icon: AlertCircle,
-        color: "orange",
-        suggestedDiscount: "%20"
-      });
-    }
-
-    // 3. Loyalty/Segment Recommendation (Mock)
-    const popularStation = stations.find(s => s.mockStatus === "RED") || stations[stations.length - 1];
-    if (popularStation) {
-      recs.push({
-        id: 3,
-        type: "LOYALTY",
-        title: "Sadakat Kampanyası",
-        station: popularStation,
-        reason: "Bu istasyon çok popüler. Sadık müşterilere özel 'Teşekkür' indirimi sunun.",
-        stat: "⭐ Yüksek Puan",
-        icon: Sparkles,
-        color: "purple",
-        suggestedDiscount: "%10"
-      });
-    }
-
-    return recs;
-  }, [stations]);
 
   // Form state
   const [formData, setFormData] = useState<Partial<Campaign>>({
@@ -110,33 +53,27 @@ export default function CampaignsPage() {
 
   const fetchCampaigns = async () => {
     try {
-      const ownerId = localStorage.getItem("ecocharge:userId") ?? "1";
       const [resCampaigns, resStations, resBadges] = await Promise.all([
-        fetch(`/api/campaigns?ownerId=${ownerId}`),
-        fetch(`/api/company/my-stations?ownerId=${ownerId}`),
-        fetch(`/api/badges`)
+        authFetch("/api/campaigns"),
+        authFetch("/api/company/my-stations"),
+        authFetch("/api/badges")
       ]);
 
       if (resCampaigns.ok) {
-        const data = await resCampaigns.json();
+        const data = await unwrapResponse<Campaign[]>(resCampaigns);
         setCampaigns(data);
       }
 
       if (resStations.ok) {
-        const data = await resStations.json();
-        // Handle different response structures
+        const data = await unwrapResponse<{ stations?: Station[] }>(resStations);
         if (data.stations) {
           setStations(data.stations);
-        } else if (Array.isArray(data)) {
-          setStations(data);
         }
       }
 
       if (resBadges.ok) {
-        const data = await resBadges.json();
-        if (data.badges) {
-          setBadges(data.badges);
-        }
+        const data = await unwrapResponse<Badge[]>(resBadges);
+        setBadges(data);
       }
     } catch (error) {
       console.error("Failed to fetch data", error);
@@ -182,15 +119,13 @@ export default function CampaignsPage() {
   };
 
   const handleSave = async () => {
-    const ownerId = localStorage.getItem("ecocharge:userId") ?? "1";
     const url = editingId ? `/api/campaigns/${editingId}` : "/api/campaigns";
     const method = editingId ? "PUT" : "POST";
 
     try {
-      const res = await fetch(url, {
+      const res = await authFetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, ownerId, targetBadgeIds: selectedBadgeIds }),
+        body: JSON.stringify({ ...formData, targetBadgeIds: selectedBadgeIds }),
       });
 
       if (res.ok) {
@@ -209,7 +144,7 @@ export default function CampaignsPage() {
   const handleDelete = async (id: number) => {
     if (!confirm("Bu kampanyayı silmek istediğinize emin misiniz?")) return;
     try {
-      const res = await fetch(`/api/campaigns/${id}`, { method: "DELETE" });
+      const res = await authFetch(`/api/campaigns/${id}`, { method: "DELETE" });
       if (res.ok) {
         fetchCampaigns();
       }
@@ -235,77 +170,6 @@ export default function CampaignsPage() {
           </button>
         )}
       </header>
-
-      {/* AI Recommendations Section */}
-      {!isCreating && recommendations.length > 0 && (
-        <div className="mb-10 animate-in fade-in slide-in-from-top-4">
-          <div className="flex items-center gap-2 mb-4 px-1">
-            <Sparkles className="h-5 w-5 text-accent-primary" />
-            <h3 className="text-lg font-bold text-white">AI Kampanya Önerileri</h3>
-          </div>
-
-          <div className="flex overflow-x-auto pb-6 -mx-4 px-4 gap-5 scrollbar-thin scrollbar-thumb-surface-3 scrollbar-track-transparent">
-            {recommendations.map((rec) => (
-              <div
-                key={rec.id}
-                className="group relative flex-shrink-0 w-80 flex flex-col justify-between rounded-2xl bg-surface-1 border border-white/5 p-5 shadow-sm transition-all hover:shadow-md hover:border-accent-primary/30 hover:-translate-y-1"
-              >
-                {/* Header */}
-                <div>
-                  <div className="flex items-start justify-between mb-3">
-                    <div className={`p-2.5 rounded-xl ${rec.color === "blue" ? "bg-blue-500/10 text-blue-400" :
-                      rec.color === "orange" ? "bg-orange-500/10 text-orange-400" :
-                        "bg-purple-500/10 text-purple-400"
-                      }`}>
-                      <rec.icon size={20} />
-                    </div>
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${rec.color === "blue" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
-                      rec.color === "orange" ? "bg-orange-500/10 text-orange-400 border-orange-500/20" :
-                        "bg-purple-500/10 text-purple-400 border-purple-500/20"
-                      }`}>
-                      {rec.stat}
-                    </span>
-                  </div>
-
-                  <h4 className="text-base font-bold text-white mb-1">{rec.title}</h4>
-                  <p className="text-xs font-medium text-blue-200 mb-3 flex items-center gap-1">
-                    <Target size={12} />
-                    {rec.station.name}
-                  </p>
-
-                  <p className="text-sm text-slate-300 leading-relaxed mb-4">
-                    {rec.reason}
-                  </p>
-                </div>
-
-                {/* Footer Action */}
-                <div className="pt-4 border-t border-white/10 flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Önerilen</span>
-                    <span className="text-lg font-bold text-white">{rec.suggestedDiscount} İndirim</span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      handleCreate();
-                      setFormData(prev => ({
-                        ...prev,
-                        title: `${rec.station.name} Fırsatı`,
-                        description: rec.reason,
-                        stationId: rec.station.id,
-                        discount: rec.suggestedDiscount,
-                        target: rec.station.name
-                      }));
-                    }}
-                    className="flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-xs font-bold text-white hover:bg-accent-primary transition shadow-md shadow-black/20 border border-white/5"
-                  >
-                    Oluştur <ArrowRight size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {isCreating && (
         <div className="mb-8 rounded-2xl border border-white/10 bg-surface-1 p-6 shadow-lg animate-in fade-in slide-in-from-top-4">

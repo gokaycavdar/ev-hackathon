@@ -43,21 +43,15 @@ func (h *Handler) ListForUser(c *gin.Context) {
 	response.OK(c, gin.H{"campaigns": campaigns})
 }
 
-// List handles GET /v1/campaigns?ownerId=X.
+// List handles GET /v1/campaigns — lists campaigns owned by the authenticated user.
 func (h *Handler) List(c *gin.Context) {
-	ownerIDStr := c.Query("ownerId")
-	if ownerIDStr == "" {
-		response.Err(c, 400, "VALIDATION_ERROR", "ownerId query parameter is required")
+	ownerID, ok := middleware.GetUserID(c)
+	if !ok {
+		response.Err(c, 401, "AUTH_UNAUTHORIZED", "Authentication required")
 		return
 	}
 
-	ownerID, err := strconv.Atoi(ownerIDStr)
-	if err != nil {
-		response.Err(c, 400, "VALIDATION_ERROR", "Invalid ownerId")
-		return
-	}
-
-	campaigns, err := h.service.ListByOwner(c.Request.Context(), int32(ownerID))
+	campaigns, err := h.service.ListByOwner(c.Request.Context(), ownerID)
 	if err != nil {
 		handleError(c, err)
 		return

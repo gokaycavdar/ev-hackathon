@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/Card";
 import { Settings, User, Bell, Shield, Save } from "lucide-react";
+import { authFetch, unwrapResponse, getStoredUserId } from "@/lib/auth";
 
 export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -13,11 +14,11 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const userId = localStorage.getItem("ecocharge:userId") ?? "1";
+      const userId = getStoredUserId() ?? "1";
       try {
-        const res = await fetch(`/api/users/${userId}`);
+        const res = await authFetch(`/api/users/${userId}`);
         if (res.ok) {
-          const data = await res.json();
+          const data = await unwrapResponse<{ name: string; email: string }>(res);
           setFormData({
             name: data.name,
             email: data.email,
@@ -34,11 +35,10 @@ export default function SettingsPage() {
   }, []);
 
   const handleSave = async () => {
-    const userId = localStorage.getItem("ecocharge:userId") ?? "1";
+    const userId = getStoredUserId() ?? "1";
     try {
-      const res = await fetch(`/api/users/${userId}`, {
+      const res = await authFetch(`/api/users/${userId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
 

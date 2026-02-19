@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { BatteryCharging, Leaf, Loader2, Zap, X, PartyPopper, Megaphone, Sparkles, MapPin, ArrowRight, Navigation } from "lucide-react";
 import type { StationMarker } from "@/components/Map";
-import { generateDynamicTimeslots, calculateGreenRewards, getDensityLevel } from "@/lib/utils-ai";
+import { authFetch, unwrapResponse, getStoredUserId, getToken, setStoredUserId } from "@/lib/auth";
 
 const Map = dynamic(async () => (await import("@/components/Map")).default, { ssr: false });
 
@@ -29,7 +29,15 @@ type ToastState = {
   detail?: string;
 } | null;
 
-export default function DriverDashboard() {
+export default function DriverDashboardPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center bg-slate-700 text-white">Yükleniyor...</div>}>
+      <DriverDashboard />
+    </Suspense>
+  );
+}
+
+function DriverDashboard() {
   const [stations, setStations] = useState<StationMarker[]>([]);
   const [selectedStation, setSelectedStation] = useState<StationMarker | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -45,24 +53,22 @@ export default function DriverDashboard() {
 
   useEffect(() => {
     const initUser = async () => {
-      // 1. Try to get from local storage
-      const storedId = typeof window !== "undefined" ? localStorage.getItem("ecocharge:userId") : null;
-      
-      if (storedId) {
-        // Optional: Verify if this user still exists? 
-        // For now, just trust it, but if we want "root solution", we should probably just fetch the demo user always
-        // or fetch if the current one fails.
-        // Let's just fetch the demo user to be safe and sync it.
+      // If we have a JWT token, use the stored userId
+      const token = getToken();
+      const storedId = getStoredUserId();
+
+      if (token && storedId) {
         setUserId(Number.parseInt(storedId, 10));
+        return;
       }
 
-      // Always fetch the correct demo user ID to ensure we are in sync with the latest seed
+      // No token — fallback to demo-user endpoint for dev
       try {
         const res = await fetch("/api/demo-user");
         if (res.ok) {
-          const user = await res.json();
+          const user = await unwrapResponse<{ id: number; name: string; email: string; role: string }>(res);
           setUserId(user.id);
-          localStorage.setItem("ecocharge:userId", user.id.toString());
+          setStoredUserId(user.id.toString());
         }
       } catch (e) {
         console.error("Failed to fetch demo user", e);
@@ -76,9 +82,8 @@ export default function DriverDashboard() {
     const controller = new AbortController();
     const loadStations = async () => {
       try {
-        const response = await fetch("/api/stations", { signal: controller.signal });
-        if (!response.ok) throw new Error("İstasyonlar yüklenemedi");
-        const data = (await response.json()) as StationMarker[];
+        const response = await authFetch("/api/stations", { signal: controller.signal });
+        const data = await unwrapResponse<StationMarker[]>(response);
         setStations(data);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -101,34 +106,13 @@ export default function DriverDashboard() {
   const fetchSlots = useCallback(async (station: StationMarker) => {
     setIsLoadingSlots(true);
     try {
-      // For the hackathon demo, we generate dynamic rolling slots client-side
-      // to ensure the "24-hour rolling window" requirement is met visually.
-      // We still call the API to ensure we don't break any tracking, but we use the generator for UI.
-      // const response = await fetch(`/api/stations/${station.id}`);
-      // if (!response.ok) throw new Error("Slot bilgisi alınamadı");
-      // const data = (await response.json()) as StationMarker & { slots: Slot[] };
-      
-      // Simulate network delay for realism
-      await new Promise(resolve => setTimeout(resolve, 600));
-      
-      const generatedSlots = generateDynamicTimeslots();
-      
-      // Apply dynamic pricing based on density
-      const density = station.mockLoad || 50;
-      const basePrice = station.price;
-      
-      const pricedSlots = generatedSlots.map(slot => {
-        let priceMultiplier = 1;
-        if (slot.load < 30) priceMultiplier = 0.95; // -5%
-        else if (slot.load > 70) priceMultiplier = 1.15; // +15%
-        
-        return {
-          ...slot,
-          price: Number((basePrice * priceMultiplier).toFixed(2))
-        };
-      });
-
-      setSlots(pricedSlots);
+      const response = await authFetch(`/api/stations/${station.id}`);
+      const stationData = await unwrapResponse<{ slots: Slot[] }>(response);
+      const fetchedSlots: Slot[] = (stationData.slots ?? []).map((s: Slot) => ({
+        ...s,
+        campaignApplied: s.campaignApplied ?? null,
+      }));
+      setSlots(fetchedSlots);
     } catch (error) {
       console.error("Slot fetch failed", error);
       setToast({ message: "Slot bilgisi alınamadı", detail: "Birazdan tekrar deneyin." });
@@ -198,19 +182,17 @@ export default function DriverDashboard() {
 
   const handleBooking = useCallback(
     async (slot: Slot) => {
-      if (!selectedStation || !userId) {
-        setToast({ message: "Kullanıcı bulunamadı", detail: "Önce giriş yapın." });
+      if (!selectedStation) {
+        setToast({ message: "İstasyon seçilmedi", detail: "Lütfen bir istasyon seçin." });
         return;
       }
 
       setIsBooking(true);
 
       try {
-        const response = await fetch("/api/reservations", {
+        const response = await authFetch("/api/reservations", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            userId,
             stationId: selectedStation.id,
             date: slot.startTime,
             hour: slot.label,
@@ -218,11 +200,7 @@ export default function DriverDashboard() {
           }),
         });
 
-        const result = await response.json();
-
-        if (!response.ok || !result.success) {
-          throw new Error(result.error ?? "Rezervasyon başarısız");
-        }
+        await unwrapResponse(response);
 
         fireConfetti();
         setToast({
@@ -237,7 +215,7 @@ export default function DriverDashboard() {
         setIsBooking(false);
       }
     },
-    [selectedStation, userId, fireConfetti],
+    [selectedStation, fireConfetti],
   );
 
   const modalTitle = useMemo(() => {
@@ -245,17 +223,19 @@ export default function DriverDashboard() {
     return `${selectedStation.name}`;
   }, [selectedStation]);
 
-  // Calculate a quick "Best Slot" for the small card preview
+  // Calculate a quick "Best Slot" from real slot data
   const bestSlotPreview = useMemo(() => {
-    if (!selectedStation) return null;
-    // Deterministic mock based on station ID
-    const startHour = 10 + (selectedStation.id % 8); // 10:00 to 17:00
-    const xp = 50 + (selectedStation.id % 4) * 10; // 50, 60, 70, 80 XP
+    if (!selectedStation || slots.length === 0) return null;
+    // Pick the best green slot (lowest load), or best non-green if no green slots
+    const greenSlots = slots.filter(s => s.isGreen);
+    const best = greenSlots.length > 0
+      ? greenSlots.sort((a, b) => a.load - b.load)[0]
+      : [...slots].sort((a, b) => a.load - b.load)[0];
     return {
-      time: `${startHour}:00 - ${startHour + 2}:00`,
-      xp
+      time: best.label,
+      xp: best.coins,
     };
-  }, [selectedStation]);
+  }, [selectedStation, slots]);
 
   const recommendation = useMemo(() => {
     if (!selectedStation || !stations.length) return null;

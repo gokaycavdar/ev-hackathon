@@ -8,31 +8,21 @@ import {
   LineChart,
   Users,
   TrendingUp,
-  ArrowUpRight,
-  ArrowDownRight,
   Zap,
   Leaf,
   AlertCircle,
-  CheckCircle2,
-  Lightbulb,
 } from "lucide-react";
-import {
-  generateDailyRevenue,
-  generateMonthlyRevenue,
-  generateCO2Savings,
-  generateLoadCurve,
-  generateMonthlyRevenueTrend,
-  generateAIInsights,
-} from "@/lib/utils-operator-ai";
+import { authFetch, unwrapResponse, getStoredUserId } from "@/lib/auth";
 
 type StationSummary = {
   id: number;
   name: string;
   price: number;
-  mockLoad: number;
-  mockStatus: "GREEN" | "YELLOW" | "RED";
+  load: number;
+  status: "GREEN" | "YELLOW" | "RED";
   reservationCount: number;
   greenReservationCount: number;
+  revenue: number;
 };
 
 type OperatorResponse = {
@@ -51,35 +41,25 @@ export default function OperatorDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState("Operator");
 
-  // Mock Analytics State
-  const [dailyRevenue] = useState(generateDailyRevenue());
-  const [monthlyRevenue] = useState(generateMonthlyRevenue());
-  const [co2Savings] = useState(generateCO2Savings());
-  const [loadCurve] = useState(generateLoadCurve());
-  const [revenueTrend] = useState(generateMonthlyRevenueTrend());
-  const [aiInsights] = useState(generateAIInsights());
-
   useEffect(() => {
-    const ownerId =
-      typeof window !== "undefined" ? localStorage.getItem("ecocharge:userId") ?? "1" : "1";
+    const ownerId = getStoredUserId() ?? "1";
 
     const controller = new AbortController();
 
     const loadDashboard = async () => {
       try {
         // Fetch User Info for Company Name
-        const userRes = await fetch(`/api/users/${ownerId}`, { signal: controller.signal });
+        const userRes = await authFetch(`/api/users/${ownerId}`, { signal: controller.signal });
         if (userRes.ok) {
-          const userData = await userRes.json();
-          // Force Otwatt branding
-          setCompanyName("Otowatt");
+          const userInfo = await unwrapResponse<{ name?: string }>(userRes);
+          setCompanyName(userInfo.name || "Operator");
         }
 
-        const response = await fetch(`/api/company/my-stations?ownerId=${ownerId}`, {
+        const response = await authFetch("/api/company/my-stations", {
           signal: controller.signal,
         });
         if (!response.ok) throw new Error("İstasyon verisi alınamadı");
-        const payload = (await response.json()) as OperatorResponse;
+        const payload = await unwrapResponse<OperatorResponse>(response);
         setData(payload);
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
@@ -143,12 +123,12 @@ export default function OperatorDashboardPage() {
 
   const topStations = useMemo(() => {
     if (!data) return [];
-    return [...data.stations].sort((a, b) => (b.mockLoad || 0) - (a.mockLoad || 0)).slice(0, 5);
+    return [...data.stations].sort((a, b) => (b.load || 0) - (a.load || 0)).slice(0, 5);
   }, [data]);
 
   const bottomStations = useMemo(() => {
     if (!data) return [];
-    return [...data.stations].sort((a, b) => (a.mockLoad || 0) - (b.mockLoad || 0)).slice(0, 5);
+    return [...data.stations].sort((a, b) => (a.load || 0) - (b.load || 0)).slice(0, 5);
   }, [data]);
 
   if (isLoading) {
@@ -212,136 +192,6 @@ export default function OperatorDashboardPage() {
                 </div>
               ))}
             </div>
-
-            {/* Analytics Section - Moved Up */}
-            <div className="grid gap-6 lg:grid-cols-3">
-              {/* Stats Grid */}
-              <div className="lg:col-span-2 grid gap-6 sm:grid-cols-2">
-                <div className="group relative overflow-hidden rounded-3xl border border-white/10 bg-surface-1 p-6 transition hover:border-green-500/30">
-                  <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-green-500/10 blur-2xl transition group-hover:bg-green-500/20" />
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="p-2.5 rounded-xl bg-green-500/10 text-green-400">
-                      <TrendingUp className="h-6 w-6" />
-                    </div>
-                    <span className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${dailyRevenue.percentageChange >= 0 ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}>
-                      {dailyRevenue.percentageChange >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                      %{Math.abs(dailyRevenue.percentageChange).toFixed(2)}
-                    </span>
-                  </div>
-                  <p className="text-sm font-medium text-text-tertiary">Günlük Gelir</p>
-                  <p className="mt-1 text-3xl font-bold text-white tracking-tight">
-                    ₺{dailyRevenue.total.toLocaleString("tr-TR", { minimumFractionDigits: 0 })}
-                  </p>
-                  <div className="mt-4 h-1.5 w-full rounded-full bg-surface-2 overflow-hidden">
-                    <div className="h-full rounded-full bg-green-500" style={{ width: `${Math.min(Math.abs(dailyRevenue.percentageChange) * 5, 100)}%` }} />
-                  </div>
-                </div>
-
-                <div className="group relative overflow-hidden rounded-3xl border border-white/10 bg-surface-1 p-6 transition hover:border-blue-500/30">
-                  <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-blue-500/10 blur-2xl transition group-hover:bg-blue-500/20" />
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400">
-                      <DollarSign className="h-6 w-6" />
-                    </div>
-                    <span className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${monthlyRevenue.percentageChange >= 0 ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}>
-                      {monthlyRevenue.percentageChange >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                      %{Math.abs(monthlyRevenue.percentageChange).toFixed(2)}
-                    </span>
-                  </div>
-                  <p className="text-sm font-medium text-text-tertiary">Aylık Gelir</p>
-                  <p className="mt-1 text-3xl font-bold text-white tracking-tight">
-                    ₺{monthlyRevenue.total.toLocaleString("tr-TR", { minimumFractionDigits: 0 })}
-                  </p>
-                  <div className="mt-4 h-1.5 w-full rounded-full bg-surface-2 overflow-hidden">
-                    <div className="h-full rounded-full bg-blue-500" style={{ width: `${Math.min(Math.abs(monthlyRevenue.percentageChange) * 5, 100)}%` }} />
-                  </div>
-                </div>
-
-                <div className="group relative overflow-hidden rounded-3xl border border-white/10 bg-surface-1 p-6 transition hover:border-emerald-500/30">
-                  <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-emerald-500/10 blur-2xl transition group-hover:bg-emerald-500/20" />
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400">
-                      <Leaf className="h-6 w-6" />
-                    </div>
-                    <span className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${co2Savings.percentageChange >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"}`}>
-                      {co2Savings.percentageChange >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                      %{Math.abs(co2Savings.percentageChange).toFixed(2)}
-                    </span>
-                  </div>
-                  <p className="text-sm font-medium text-text-tertiary">CO2 Tasarrufu</p>
-                  <p className="mt-1 text-3xl font-bold text-white tracking-tight">
-                    {co2Savings.total.toLocaleString("tr-TR", { minimumFractionDigits: 0 })} <span className="text-lg text-text-tertiary font-normal">kg</span>
-                  </p>
-                  <div className="mt-4 h-1.5 w-full rounded-full bg-surface-2 overflow-hidden">
-                    <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(Math.abs(co2Savings.percentageChange) * 5, 100)}%` }} />
-                  </div>
-                </div>
-
-                <div className="group relative overflow-hidden rounded-3xl border border-white/10 bg-surface-1 p-6 transition hover:border-yellow-500/30">
-                  <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-yellow-500/10 blur-2xl transition group-hover:bg-yellow-500/20" />
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="p-2.5 rounded-xl bg-yellow-500/10 text-yellow-400">
-                      <Zap className="h-6 w-6" />
-                    </div>
-                    <span className="flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full bg-surface-2 text-text-secondary">
-                      Ortalama
-                    </span>
-                  </div>
-                  <p className="text-sm font-medium text-text-tertiary">Yük Eğrisi</p>
-                  <p className="mt-1 text-3xl font-bold text-white tracking-tight">
-                    %{Math.round((loadCurve.reduce((a, b) => a + b.load, 0) / loadCurve.length) || 0)}
-                  </p>
-                  <div className="mt-4 h-1.5 w-full rounded-full bg-surface-2 overflow-hidden">
-                    <div className="h-full rounded-full bg-yellow-500" style={{ width: `${Math.round((loadCurve.reduce((a, b) => a + b.load, 0) / loadCurve.length) || 0)}%` }} />
-                  </div>
-                </div>
-              </div>
-
-              {/* AI Insights Column */}
-              <div className="rounded-3xl border border-white/10 bg-surface-1 p-6 flex flex-col h-full">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-2">
-                    <Lightbulb className="h-5 w-5 text-yellow-400" />
-                    <h3 className="text-lg font-bold text-white">AI Bilgileri</h3>
-                  </div>
-                  <span className="flex h-2 w-2 rounded-full bg-accent-primary animate-pulse" />
-                </div>
-                
-                <div className="flex-1 space-y-4 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-surface-3 scrollbar-track-transparent max-h-[400px]">
-                  {aiInsights.map((insight) => (
-                    <div
-                      key={insight.id}
-                      className="group relative rounded-2xl border border-white/5 bg-surface-2/30 p-4 transition hover:bg-surface-2 hover:border-white/10"
-                    >
-                      <div className="flex gap-3">
-                        <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${
-                          insight.type === 'warning' ? 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]' :
-                          insight.type === 'success' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' :
-                          'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]'
-                        }`} />
-                        
-                        <div className="flex-1">
-                          <p className="text-sm text-white font-medium leading-relaxed mb-3">{insight.message}</p>
-                          
-                          <div className="flex items-center justify-between border-t border-white/5 pt-3">
-                            <span className={`text-xs font-bold ${
-                              insight.type === 'warning' ? 'text-orange-400' :
-                              insight.type === 'success' ? 'text-green-400' :
-                              'text-blue-400'
-                            }`}>
-                              {insight.impact}
-                            </span>
-                            <button className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-text-tertiary hover:text-white transition group-hover:translate-x-1">
-                              {insight.action} <ArrowUpRight className="h-3 w-3" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
           </section>
 
           <section className="space-y-10">
@@ -373,10 +223,10 @@ export default function OperatorDashboardPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
                             <p className="text-sm font-bold text-white truncate">{station.name}</p>
-                            <span className="text-xs font-bold text-green-400">%{station.mockLoad}</span>
+                            <span className="text-xs font-bold text-green-400">%{station.load}</span>
                           </div>
                           <div className="h-1.5 w-full rounded-full bg-surface-3 overflow-hidden">
-                            <div className="h-full rounded-full bg-green-500" style={{ width: `${station.mockLoad}%` }} />
+                            <div className="h-full rounded-full bg-green-500" style={{ width: `${station.load}%` }} />
                           </div>
                           <div className="mt-1.5 flex items-center gap-2 text-[10px] text-text-tertiary">
                             <span className="flex items-center gap-1">
@@ -414,10 +264,10 @@ export default function OperatorDashboardPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
                             <p className="text-sm font-bold text-white truncate">{station.name}</p>
-                            <span className="text-xs font-bold text-red-400">%{station.mockLoad}</span>
+                            <span className="text-xs font-bold text-red-400">%{station.load}</span>
                           </div>
                           <div className="h-1.5 w-full rounded-full bg-surface-3 overflow-hidden">
-                            <div className="h-full rounded-full bg-red-500" style={{ width: `${Math.max(station.mockLoad, 5)}%` }} />
+                            <div className="h-full rounded-full bg-red-500" style={{ width: `${Math.max(station.load, 5)}%` }} />
                           </div>
                           <div className="mt-1.5 flex items-center justify-between">
                             <div className="flex items-center gap-2 text-[10px] text-text-tertiary">

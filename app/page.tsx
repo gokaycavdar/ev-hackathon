@@ -3,14 +3,22 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Zap, MapPin, Trophy, Building2, ArrowRight, CheckCircle2, X, Lock, User } from "lucide-react";
+import { setToken, setStoredUserId } from "@/lib/auth";
 
-type LoginResponse = {
-	user?: {
+type AuthResponseData = {
+	token: string;
+	user: {
 		id: number;
 		role: string;
 		name: string;
+		email: string;
 	};
-	error?: string;
+};
+
+type ApiResponse = {
+	success: boolean;
+	data?: AuthResponseData;
+	error?: { code: string; message: string };
 };
 
 export default function AuthLandingPage() {
@@ -66,19 +74,22 @@ export default function AuthLandingPage() {
 				body: JSON.stringify(body),
 			});
 
-			const data: LoginResponse = await response.json();
+			const result: ApiResponse = await response.json();
 
-			if (!response.ok || !data.user) {
-				throw new Error(data.error ?? `${mode === "login" ? "Giriş" : "Kayıt"} başarısız`);
+			if (!response.ok || !result.success || !result.data) {
+				throw new Error(result.error?.message ?? `${mode === "login" ? "Giriş" : "Kayıt"} başarısız`);
 			}
+
+			const { token, user } = result.data;
 
 			if (typeof window !== "undefined") {
-				localStorage.setItem("ecocharge:userId", data.user.id.toString());
-				localStorage.setItem("ecocharge:role", data.user.role);
-				localStorage.setItem("ecocharge:name", data.user.name);
+				setToken(token);
+				setStoredUserId(user.id.toString());
+				localStorage.setItem("ecocharge:role", user.role);
+				localStorage.setItem("ecocharge:name", user.name);
 			}
 
-			router.push(data.user.role === "OPERATOR" ? "/operator" : "/driver");
+			router.push(user.role === "OPERATOR" ? "/operator" : "/driver");
 		} catch (err) {
 			const message = err instanceof Error ? err.message : `${mode === "login" ? "Giriş" : "Kayıt"} sırasında hata oluştu`;
 			setError(message);

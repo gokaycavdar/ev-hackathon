@@ -1,175 +1,220 @@
-# 🚗⚡ SmartCharge AI - EV Şarj İstasyonu Yönetim Platformu
+# SmartCharge - AI-Driven EV Charging Ecosystem
 
-> **Hackathon MVP** - AI destekli yeşil enerji slot önerileri, oyunlaştırılmış ödül sistemi ve operatör dashboard'u ile elektrikli araç şarj deneyimi.
+An intelligent EV charging station management platform with green energy slot recommendations, a gamified reward system, and an operator analytics dashboard.
 
-## 🎯 Özellikler
+## Architecture
 
-### Sürücü Özellikleri
-- 🗺️ **Interaktif Harita**: Leaflet ile gerçek zamanlı istasyon görünümü
-- 🤖 **AI Asistan**: OpenAI tabanlı akıllı şarj önerileri
-- 🌱 **Yeşil Enerji**: CO2 tasarrufu ve bonus coin kazanımı
-- 🏆 **Gamification**: XP, rozet ve liderlik tablosu sistemi
-- 📅 **Rezervasyon**: Saatlik slot bazlı rezervasyon
-- 💰 **Dijital Cüzdan**: Coin sistemi ile ödül kazanma
+| Layer | Technology | Location |
+|-------|-----------|----------|
+| Frontend | Next.js 16, React 19, TypeScript, TailwindCSS | `/` (repo root) |
+| Backend | Go (Gin), Clean Architecture, JWT auth | `smartcharge-api/` |
+| Database | PostgreSQL 15, SQLC (code-gen) | `smartcharge-api/db/` |
+| Infrastructure | Docker Compose | `docker-compose.yml` |
 
-### Operatör Özellikleri
-- 📊 **Analytics Dashboard**: Gelir, kullanım ve CO2 istatistikleri
-- 🎯 **Kampanya Yönetimi**: İndirim ve bonus coin kampanyaları
-- 🔧 **İstasyon Yönetimi**: CRUD operasyonları
-- 📈 **Yük Analizi**: 24 saatlik yük eğrileri
+The frontend proxies all `/api/*` requests to the Go backend at `http://localhost:8080/v1/*` via Next.js rewrites (see `next.config.ts`).
 
-## 🛠️ Teknoloji Stack
+## Features
 
-- **Frontend**: Next.js 16, React 19, TypeScript
-- **Backend**: Next.js API Routes
-- **Database**: PostgreSQL + Prisma ORM
-- **Styling**: TailwindCSS
-- **Maps**: Leaflet + React Leaflet
-- **AI**: OpenAI API
-- **Container**: Docker + Docker Compose
+### Driver
+- Interactive map with real-time station status (Leaflet)
+- AI assistant for smart charging recommendations
+- Green energy slots with CO2 savings and bonus coins
+- Gamification: XP, badges, and leaderboard
+- Hourly slot-based reservations
+- Digital wallet with coin rewards
 
-## 📋 Gereksinimler
+### Operator
+- Revenue, usage, and CO2 analytics dashboard
+- Campaign management (discounts, bonus coins, badge targeting)
+- Station CRUD with density-based load monitoring
+- 24-hour load forecasting (linear regression)
 
-- Node.js 20+
+## Prerequisites
+
 - Docker & Docker Compose
-- npm/yarn/pnpm
+- Go 1.25+ (for backend development)
+- Node.js 20+ and npm (for frontend development)
+- [golang-migrate](https://github.com/golang-migrate/migrate) CLI (for running migrations)
+- [SQLC](https://sqlc.dev/) (only if modifying database queries)
 
-## 🚀 Kurulum
+## Quick Start
 
-### 1. Projeyi Klonlayın
+### 1. Clone and configure
+
 ```bash
 git clone <repo-url>
-cd ev-hackathon
+cd smartcharge
 ```
 
-### 2. Bağımlılıkları Yükleyin
-```bash
-npm install
-```
+Copy environment files:
 
-### 3. Environment Ayarları
 ```bash
-# .env dosyasını oluşturun
+# Frontend
 cp .env.example .env
 
-# .env dosyasını düzenleyin:
-# DATABASE_URL="postgresql://admin:admin@localhost:5432/evcharge?schema=public"
-# OPENAI_API_KEY="your-api-key-here"
+# Backend
+cp smartcharge-api/.env.example smartcharge-api/.env
 ```
 
-### 4. Database Kurulumu
+### 2. Start the database and API
+
 ```bash
-# PostgreSQL container'ı başlatın
 docker-compose up -d
-
-# Prisma migration
-npx prisma migrate dev --name init
-
-# Seed data yükleyin (Manisa ve İzmir istasyonları)
-npx prisma db seed
 ```
 
-### 5. Geliştirme Sunucusunu Başlatın
+This starts PostgreSQL (port 5432) and the Go API (port 8080). The API waits for the database health check before starting.
+
+### 3. Run database migrations
+
 ```bash
+migrate -database "postgres://admin:admin@localhost:5432/evcharge?sslmode=disable" \
+        -path smartcharge-api/db/migrations up
+```
+
+### 4. Seed the database
+
+```bash
+go run ./scripts/seed.go
+```
+
+This creates demo users, 46 stations (Manisa/Izmir), 5 badges, 4 campaigns, and 7,728 forecast records.
+
+### 5. Start the frontend
+
+```bash
+npm install
 npm run dev
 ```
 
-[http://localhost:3000](http://localhost:3000) adresini tarayıcınızda açın.
+Open [http://localhost:3000](http://localhost:3000).
 
-## 👥 Demo Kullanıcılar
+## Demo Users
 
-Sisteme giriş yapmak için:
+| Role | Email | Password |
+|------|-------|----------|
+| Driver | `driver@test.com` | `password123` |
+| Operator | `info@zorlu.com` | `password123` |
 
-| Rol | Email | Açıklama |
-|-----|-------|----------|
-| Sürücü | `driver@test.com` | Rezervasyon yapabilir, AI asistanı kullanabilir |
-| Operatör | `info@zorlu.com` | İstasyon ve kampanya yönetimi |
-
-> **Not**: Mevcut sistemde şifre kontrolü yok, sadece email ile giriş yapılıyor.
-
-## 📁 Proje Yapısı
+## Project Structure
 
 ```
-ev-hackathon/
+smartcharge/
 ├── app/
-│   ├── (auth)/              # Giriş sayfası
-│   ├── (driver)/            # Sürücü dashboard
-│   ├── (operator)/          # Operatör dashboard
-│   └── api/                 # Backend API routes
+│   ├── (driver)/           # Driver dashboard pages
+│   ├── (operator)/         # Operator dashboard pages
+│   └── page.tsx            # Login/Register page
 ├── components/
-│   ├── ChatWidget.tsx       # AI asistan widget
-│   ├── Map.tsx              # Leaflet harita
-│   └── ui/                  # UI bileşenleri
+│   ├── ChatWidget.tsx      # AI assistant widget
+│   ├── GlobalAIWidget.tsx  # Floating AI widget
+│   └── Map.tsx             # Leaflet map component
 ├── lib/
-│   ├── prisma.ts            # Prisma client
-│   ├── utils-ai.ts          # Sürücü utils
-│   └── utils-operator-ai.ts # Operatör utils
-├── prisma/
-│   ├── schema.prisma        # Database şeması
-│   └── seed.ts              # Seed data
-└── docker-compose.yml       # PostgreSQL config
+│   ├── auth.ts             # JWT auth utilities (authFetch, token management)
+│   └── utils-ai.ts         # Green energy helpers
+├── smartcharge-api/
+│   ├── cmd/server/         # Main entry point
+│   ├── db/
+│   │   ├── migrations/     # SQL migrations
+│   │   ├── queries/        # SQLC query definitions
+│   │   └── generated/      # SQLC generated code (do not edit)
+│   ├── internal/
+│   │   ├── auth/           # Authentication (JWT, login, register)
+│   │   ├── station/        # Station CRUD + timeslot generation
+│   │   ├── reservation/    # Reservation lifecycle
+│   │   ├── user/           # User profiles + leaderboard
+│   │   ├── campaign/       # Campaign CRUD + for-user listing
+│   │   ├── operator/       # Operator dashboard + stats
+│   │   ├── badge/          # Badge listing
+│   │   ├── chat/           # AI chat (stub)
+│   │   ├── demouser/       # Demo user endpoint
+│   │   ├── config/         # Environment config
+│   │   ├── middleware/      # JWT auth + CORS middleware
+│   │   ├── response/       # Unified JSON response wrapper
+│   │   └── errors/         # Application error types
+│   └── scripts/seed.go     # Database seed script
+└── docker-compose.yml      # PostgreSQL + Go API
 ```
 
-## 🔧 Prisma Komutları
+## Backend Development
+
+### Running the Go API locally (without Docker)
 
 ```bash
-# Studio (GUI)
-npx prisma studio
-
-# Schema değişikliği sonrası migration
-npx prisma migrate dev --name migration_name
-
-# Client yeniden oluşturma
-npx prisma generate
-
-# Database sıfırlama + seed
-npx prisma migrate reset
+cd smartcharge-api
+cp .env.example .env        # Edit DATABASE_URL if needed
+make run                    # or: go run ./cmd/server
 ```
 
-## 🗺️ Seed Data
+The API starts at `http://localhost:8080`. Health check: `GET /health`.
 
-Seed scripti şu istasyonları içerir:
-- **Manisa**: ~40 istasyon (Merkez, OSB, kampüs, AVM'ler)
-- **İzmir**: 2 referans istasyon
-- **Rozetler**: 5 farklı oyunlaştırma rozeti
-- **Demo Kullanıcılar**: Sürücü ve operatör hesapları
+### SQLC workflow
 
-## 📊 Database Şeması
+After modifying query files in `db/queries/`:
 
-### Temel Modeller
-- **User**: Kullanıcılar (Sürücü/Operatör), coins, XP, CO2 tasarrufu
-- **Station**: Şarj istasyonları, konum, fiyat, yoğunluk
-- **Reservation**: Rezervasyonlar, yeşil enerji, kazanılan ödüller
-- **Campaign**: İndirim kampanyaları, bonus coinler
-- **Badge**: Gamification rozetleri
+```bash
+cd smartcharge-api
+make sqlc                   # or: sqlc generate
+```
 
-## ⚠️ Geliştirme Notları
+This regenerates Go code in `db/generated/`. Do not edit generated files directly.
 
-Bu proje **hackathon MVP** seviyesindedir. Production kullanımı için:
+### API response format
 
-1. **Güvenlik**: Password hash, JWT, session management
-2. **Mock Data**: Gerçek IoT/Grid API entegrasyonu
-3. **OpenAI**: AI chat tam entegrasyonu
-4. **Testing**: Unit, integration, E2E testleri
-5. **Monitoring**: Error tracking, analytics
+All endpoints return a unified JSON envelope:
 
-Detaylı geliştirme planı için: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)
+```json
+{
+  "success": true,
+  "data": { },
+  "error": null,
+  "meta": null
+}
+```
 
-## 🐛 Bilinen Sorunlar
+### Key endpoints
 
-- [ ] Şifresiz giriş (sadece email)
-- [ ] Mock data kullanımı (gelir, yük eğrileri)
-- [ ] OpenAI API entegrasyonu tamamlanmadı
-- [ ] Rate limiting yok
-- [ ] Input validation eksik
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/v1/auth/login` | No | Login, returns JWT |
+| POST | `/v1/auth/register` | No | Register new user |
+| GET | `/v1/stations` | No | List all stations |
+| GET | `/v1/stations/:id` | No | Station detail + 24h timeslots |
+| GET | `/v1/stations/forecast` | No | Density forecasts |
+| POST | `/v1/reservations` | Yes | Create reservation |
+| POST | `/v1/reservations/:id/complete` | Yes | Complete reservation |
+| GET | `/v1/users/:id` | Yes | User profile |
+| GET | `/v1/users/leaderboard` | No | XP leaderboard |
+| GET | `/v1/company/my-stations` | Yes | Operator's stations + stats |
+| GET | `/v1/campaigns` | Yes | Operator's campaigns |
+| GET | `/v1/campaigns/for-user` | No | Active campaigns for drivers |
+| GET | `/v1/badges` | No | All badges |
+| POST | `/v1/chat` | No | AI chat (stub) |
+| GET | `/v1/demo-user` | No | Demo user fallback |
 
-## 📚 Kaynaklar
+## Frontend Development
 
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Prisma Documentation](https://www.prisma.io/docs)
-- [Leaflet Documentation](https://leafletjs.com/reference.html)
-- [TailwindCSS Documentation](https://tailwindcss.com/docs)
+```bash
+npm run dev     # Start dev server (port 3000)
+npm run build   # Production build
+npm run lint    # ESLint
+```
 
-## 📄 Lisans
+The frontend uses `authFetch()` from `lib/auth.ts` for all API calls, which automatically attaches JWT Bearer tokens and handles 401 redirects.
 
-Bu proje hackathon amaçlı geliştirilmiştir.
+## Environment Variables
+
+### Frontend (`.env`)
+
+| Variable | Description |
+|----------|-------------|
+| `OPENAI_API_KEY` | OpenAI API key (reserved for future use) |
+| `NODE_ENV` | `development` or `production` |
+
+### Backend (`smartcharge-api/.env`)
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_SECRET` | Secret key for JWT signing |
+| `PORT` | API server port (default: 8080) |
+| `GIN_MODE` | `debug` or `release` |
+| `FRONTEND_URL` | Frontend URL for CORS |

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Zap, X, MapPin, ArrowRight, Sparkles, Clock, BatteryCharging, Coins, ExternalLink, TrendingDown, Gift, Award } from "lucide-react";
+import { authFetch, unwrapResponse, getStoredUserId, getToken } from "@/lib/auth";
 
 // Tab 1: Şu An En Müsait (Forecast bazlı)
 type ForecastRecommendation = {
@@ -60,14 +61,20 @@ export default function GlobalAIWidget() {
 
   useEffect(() => {
     const initUser = async () => {
-      const storedId = typeof window !== "undefined" ? localStorage.getItem("ecocharge:userId") : null;
-      if (storedId) setUserId(Number.parseInt(storedId, 10));
+      // If JWT token exists, use stored userId
+      const token = getToken();
+      const storedId = getStoredUserId();
+      if (token && storedId) {
+        setUserId(Number.parseInt(storedId, 10));
+        return;
+      }
 
+      // Fallback: demo user when no JWT
       try {
         const res = await fetch("/api/demo-user");
         if (res.ok) {
-          const user = await res.json();
-          setUserId(user.id);
+          const data = await unwrapResponse<{ id: number }>(res);
+          setUserId(data.id);
         }
       } catch (e) {
         console.error("Failed to sync demo user", e);
@@ -85,15 +92,15 @@ export default function GlobalAIWidget() {
       // Her iki tab için verileri paralel yükle
       Promise.all([
         // Tab 1: Forecast verileri
-        fetch("/api/stations/forecast").then(res => res.json()),
-        // Tab 2: Personalized kampanyalar (userId varsa)
-        userId ? fetch(`/api/campaigns/for-user?userId=${userId}`).then(res => res.json()) : Promise.resolve({ campaigns: [], userBadges: [] })
+        authFetch("/api/stations/forecast").then(res => res.json()),
+        // Tab 2: Personalized kampanyalar
+        authFetch("/api/campaigns/for-user").then(res => res.json()).catch(() => ({ success: false }))
       ])
         .then(([forecastData, campaignData]) => {
           // Tab 1: En düşük yoğunluklu 3 istasyonu al
-          if (forecastData.success && forecastData.forecasts) {
-            setCurrentTime(forecastData.currentTime);
-            const topRecs = forecastData.forecasts.slice(0, 3).map((f: any, idx: number) => ({
+          if (forecastData.success && forecastData.data?.forecasts) {
+            setCurrentTime(forecastData.data.currentTime);
+            const topRecs = forecastData.data.forecasts.slice(0, 3).map((f: any, idx: number) => ({
               stationId: f.stationId,
               stationName: f.stationName,
               lat: f.lat,
@@ -107,10 +114,10 @@ export default function GlobalAIWidget() {
             setForecastRecs(topRecs);
           }
 
-          // Tab 2: Kampanyalar
-          if (campaignData.success) {
-            setCampaigns(campaignData.campaigns || []);
-            setUserBadges(campaignData.userBadges || []);
+          // Tab 2: Kampanyalar (double-wrapped: data.campaigns)
+          if (campaignData.success && campaignData.data) {
+            setCampaigns(campaignData.data.campaigns || []);
+            setUserBadges(campaignData.data.userBadges || []);
           }
 
           setIsLoading(false);
@@ -120,7 +127,7 @@ export default function GlobalAIWidget() {
           setIsLoading(false);
         });
     }
-  }, [isOpen, userId]);
+  }, [isOpen]);
 
   const handleInspect = (stationId: number) => {
     setIsOpen(false);
@@ -128,15 +135,12 @@ export default function GlobalAIWidget() {
   };
 
   const handleBook = async (stationId: number, slot: string) => {
-    const activeUserId = userId || 20;
     setBookingId(stationId);
 
     try {
-      const res = await fetch("/api/reservations", {
+      const res = await authFetch("/api/reservations", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: activeUserId,
           stationId,
           date: new Date().toISOString(),
           hour: slot.split(" - ")[0],
@@ -153,7 +157,7 @@ export default function GlobalAIWidget() {
           setBookingId(null);
         }, 2500);
       } else {
-        alert("Rezervasyon başarısız: " + data.error);
+        alert("Rezervasyon başarısız: " + (data.error?.message || "Hata"));
         setBookingId(null);
       }
     } catch (error) {

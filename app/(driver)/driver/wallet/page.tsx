@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Award, Coins, Leaf, Loader2, Sparkles, Trophy, Users } from "lucide-react";
 import Link from "next/link";
-import { MOCK_LEADERBOARD } from "@/lib/utils-ai";
+import { authFetch, unwrapResponse, getStoredUserId } from "@/lib/auth";
 
 type Badge = {
 	id: number;
@@ -37,14 +37,22 @@ type UserPayload = {
 	reservations: Reservation[];
 };
 
+type LeaderboardEntry = {
+	id: number;
+	name: string;
+	xp: number;
+};
+
 export default function DriverWalletPage() {
 	const [user, setUser] = useState<UserPayload | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [activeTab, setActiveTab] = useState<"overview" | "badges" | "leaderboard">("overview");
+	const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+	const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
 
 	useEffect(() => {
-		const userId = typeof window !== "undefined" ? localStorage.getItem("ecocharge:userId") : null;
+		const userId = getStoredUserId();
 		if (!userId) {
 			setError("Önce giriş yapmalısınız.");
 			setIsLoading(false);
@@ -54,9 +62,8 @@ export default function DriverWalletPage() {
 		const controller = new AbortController();
 		const loadUser = async () => {
 			try {
-				const response = await fetch(`/api/users/${userId}`, { signal: controller.signal });
-				if (!response.ok) throw new Error("Kullanıcı bilgisi alınamadı");
-				const data = (await response.json()) as UserPayload;
+				const response = await authFetch(`/api/users/${userId}`, { signal: controller.signal });
+				const data = await unwrapResponse<UserPayload>(response);
 				setUser(data);
 			} catch (err) {
 				if (err instanceof DOMException && err.name === "AbortError") return;
@@ -70,6 +77,34 @@ export default function DriverWalletPage() {
 		loadUser();
 		return () => controller.abort();
 	}, []);
+
+	// Fetch leaderboard when tab switches to leaderboard
+	useEffect(() => {
+		if (activeTab !== "leaderboard" || leaderboard.length > 0) return;
+		const controller = new AbortController();
+		const loadLeaderboard = async () => {
+			setIsLoadingLeaderboard(true);
+			try {
+				const response = await authFetch("/api/users/leaderboard?limit=10", { signal: controller.signal });
+				const entries = await unwrapResponse<LeaderboardEntry[]>(response);
+				setLeaderboard(entries);
+			} catch (err) {
+				if (err instanceof DOMException && err.name === "AbortError") return;
+				console.error("Leaderboard fetch failed", err);
+			} finally {
+				setIsLoadingLeaderboard(false);
+			}
+		};
+		loadLeaderboard();
+		return () => controller.abort();
+	}, [activeTab, leaderboard.length]);
+
+	// Compute user's rank in leaderboard
+	const userRank = useMemo(() => {
+		if (!user || leaderboard.length === 0) return null;
+		const index = leaderboard.findIndex((entry) => entry.id === user.id);
+		return index >= 0 ? index + 1 : null;
+	}, [user, leaderboard]);
 
 	const totalGreenSessions = useMemo(() => {
 		if (!user) return 0;
@@ -280,60 +315,72 @@ export default function DriverWalletPage() {
 												Haftanın Liderleri
 											</h2>
 											<span className="rounded-full bg-surface-2 px-3 py-1 text-xs font-medium text-text-secondary">
-												Sıfırlanmaya 2 gün kaldı
+												XP Sıralaması
 											</span>
 										</div>
 										
-										<div className="space-y-4">
-											{MOCK_LEADERBOARD.map((u, i) => (
-												<div 
-													key={u.id} 
-													className={`relative flex items-center justify-between rounded-2xl border p-4 transition-all hover:scale-[1.01] ${
-														i === 0 ? "border-yellow-500/30 bg-gradient-to-r from-yellow-500/10 to-transparent" :
-														i === 1 ? "border-text-tertiary/30 bg-surface-2" :
-														i === 2 ? "border-orange-500/30 bg-orange-500/5" :
-														"border-white/5 bg-surface-1/50"
-													}`}
-												>
-													<div className="flex items-center gap-6">
-														<div className={`flex h-10 w-10 items-center justify-center rounded-full font-bold shadow-lg ${
-															i === 0 ? "bg-yellow-500 text-black ring-4 ring-yellow-500/20" :
-															i === 1 ? "bg-slate-300 text-black" :
-															i === 2 ? "bg-orange-400 text-black" :
-															"bg-slate-700 text-slate-400"
-														}`}>
-															{i + 1}
-														</div>
-														<div>
-															<p className={`font-bold ${i === 0 ? "text-yellow-400" : "text-white"}`}>{u.name}</p>
-															<p className="text-xs text-slate-500">Sürücü Ligi</p>
-														</div>
-													</div>
-													<div className="flex items-center gap-6">
-														<span className="text-2xl filter drop-shadow-lg">{u.badge}</span>
-														<div className="text-right">
-															<p className="font-mono text-lg font-bold text-blue-300">{u.xp.toLocaleString()} XP</p>
-														</div>
-													</div>
-												</div>
-											))}
-											
-											{/* User's Rank (Fake) */}
-											<div className="mt-8 border-t border-slate-700 pt-6">
-												<div className="flex items-center justify-between rounded-2xl border border-blue-500/30 bg-blue-500/10 p-4">
-													<div className="flex items-center gap-6">
-														<div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500 text-white font-bold shadow-lg shadow-blue-500/30">
-															12
-														</div>
-														<div>
-															<p className="font-bold text-white">Sen</p>
-															<p className="text-xs text-blue-300">Yükseliştesin! 🚀</p>
-														</div>
-													</div>
-													<div className="font-mono text-lg font-bold text-blue-300">{user.xp.toLocaleString()} XP</div>
-												</div>
+										{isLoadingLeaderboard ? (
+											<div className="flex flex-col items-center justify-center gap-3 py-12 text-text-tertiary">
+												<Loader2 className="h-6 w-6 animate-spin text-accent-primary" />
+												<p>Liderlik tablosu yükleniyor...</p>
 											</div>
-										</div>
+										) : (
+											<div className="space-y-4">
+												{leaderboard.map((u, i) => {
+													const badge = i === 0 ? "\u{1F3C6}" : i === 1 ? "\u{1F948}" : i === 2 ? "\u{1F949}" : "\u26A1";
+													return (
+														<div 
+															key={u.id} 
+															className={`relative flex items-center justify-between rounded-2xl border p-4 transition-all hover:scale-[1.01] ${
+																i === 0 ? "border-yellow-500/30 bg-gradient-to-r from-yellow-500/10 to-transparent" :
+																i === 1 ? "border-text-tertiary/30 bg-surface-2" :
+																i === 2 ? "border-orange-500/30 bg-orange-500/5" :
+																"border-white/5 bg-surface-1/50"
+															}`}
+														>
+															<div className="flex items-center gap-6">
+																<div className={`flex h-10 w-10 items-center justify-center rounded-full font-bold shadow-lg ${
+																	i === 0 ? "bg-yellow-500 text-black ring-4 ring-yellow-500/20" :
+																	i === 1 ? "bg-slate-300 text-black" :
+																	i === 2 ? "bg-orange-400 text-black" :
+																	"bg-slate-700 text-slate-400"
+																}`}>
+																	{i + 1}
+																</div>
+																<div>
+																	<p className={`font-bold ${i === 0 ? "text-yellow-400" : "text-white"}`}>{u.name}</p>
+																	<p className="text-xs text-slate-500">Sürücü Ligi</p>
+																</div>
+															</div>
+															<div className="flex items-center gap-6">
+																<span className="text-2xl filter drop-shadow-lg">{badge}</span>
+																<div className="text-right">
+																	<p className="font-mono text-lg font-bold text-blue-300">{u.xp.toLocaleString()} XP</p>
+																</div>
+															</div>
+														</div>
+													);
+												})}
+												
+												{/* User's Real Rank */}
+												{userRank !== null && (
+													<div className="mt-8 border-t border-slate-700 pt-6">
+														<div className="flex items-center justify-between rounded-2xl border border-blue-500/30 bg-blue-500/10 p-4">
+															<div className="flex items-center gap-6">
+																<div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500 text-white font-bold shadow-lg shadow-blue-500/30">
+																	{userRank}
+																</div>
+																<div>
+																	<p className="font-bold text-white">Sen</p>
+																	<p className="text-xs text-blue-300">{userRank <= 3 ? "Zirvedesin!" : "Yükseliştesin!"}</p>
+																</div>
+															</div>
+															<div className="font-mono text-lg font-bold text-blue-300">{user.xp.toLocaleString()} XP</div>
+														</div>
+													</div>
+												)}
+											</div>
+										)}
 									</div>
 								</div>
 							)}

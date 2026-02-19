@@ -156,19 +156,11 @@ export default function Map({ stations, onSelect, onMapClick, initialCenter, zoo
                       </div>
                     </div>
 
-                    {/* Mini Grid */}
-                    <div className="mb-3 grid grid-cols-3 gap-2">
-                      <div className="rounded-lg bg-slate-700/50 p-2 text-center border border-white/5">
-                        <div className="text-[9px] text-slate-400 uppercase tracking-wider font-semibold">Güç</div>
-                        <div className="font-bold text-slate-200 text-xs">{station.id % 2 === 0 ? "120 kW" : "180 kW"}</div>
-                      </div>
-                      <div className="rounded-lg bg-slate-700/50 p-2 text-center border border-white/5">
-                        <div className="text-[9px] text-slate-400 uppercase tracking-wider font-semibold">Mesafe</div>
-                        <div className="font-bold text-slate-200 text-xs">{(1.2 + (station.id % 5) * 0.4).toFixed(1)} km</div>
-                      </div>
-                      <div className="rounded-lg bg-slate-700/50 p-2 text-center border border-white/5">
+                    {/* Station Info */}
+                    <div className="mb-3">
+                      <div className="rounded-lg bg-slate-700/50 p-2 text-center border border-white/5 inline-block">
                         <div className="text-[9px] text-slate-400 uppercase tracking-wider font-semibold">Fiyat</div>
-                        <div className="font-bold text-slate-200 text-xs">{station.price} ₺</div>
+                        <div className="font-bold text-slate-200 text-xs">{station.price} ₺/kWh</div>
                       </div>
                     </div>
 

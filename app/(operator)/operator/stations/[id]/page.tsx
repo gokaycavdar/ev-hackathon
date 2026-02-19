@@ -8,18 +8,14 @@ import {
   Check, 
   ChevronRight, 
   MapPin, 
-  Zap, 
   DollarSign, 
   Info, 
-  BatteryCharging,
   Save
 } from "lucide-react";
+import { authFetch, unwrapResponse } from "@/lib/auth";
 
 type StationFormData = {
   name: string;
-  type: "AC" | "DC";
-  power: number;
-  connectorType: string;
   latitude: number;
   longitude: number;
   address: string;
@@ -42,9 +38,6 @@ export default function EditStationPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState<StationFormData>({
     name: "",
-    type: "DC", // Default or fetched
-    power: 120, // Default or fetched
-    connectorType: "CCS2", // Default or fetched
     latitude: 0,
     longitude: 0,
     address: "",
@@ -54,14 +47,11 @@ export default function EditStationPage() {
   useEffect(() => {
     const fetchStation = async () => {
       try {
-        const res = await fetch(`/api/stations/${id}`);
+        const res = await authFetch(`/api/stations/${id}`);
         if (res.ok) {
-          const data = await res.json();
+          const data = await unwrapResponse<{ name: string; lat: number; lng: number; address?: string; price: number }>(res);
           setFormData({
             name: data.name,
-            type: "DC", // Mock
-            power: 120, // Mock
-            connectorType: "CCS2", // Mock
             latitude: data.lat,
             longitude: data.lng,
             address: data.address || "",
@@ -97,9 +87,8 @@ export default function EditStationPage() {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      const res = await fetch(`/api/stations/${id}`, {
+      const res = await authFetch(`/api/stations/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
 
@@ -195,59 +184,6 @@ export default function EditStationPage() {
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
                 />
-              </div>
-
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-text-secondary">Şarj Tipi</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button 
-                      type="button"
-                      onClick={() => setFormData({...formData, type: "AC"})}
-                      className={`p-3 rounded-xl border text-center transition ${
-                        formData.type === "AC" 
-                          ? "border-accent-primary bg-accent-primary/10 text-accent-primary" 
-                          : "border-white/10 bg-surface-2 text-text-secondary hover:bg-surface-3"
-                      }`}
-                    >
-                      AC
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={() => setFormData({...formData, type: "DC"})}
-                      className={`p-3 rounded-xl border text-center transition ${
-                        formData.type === "DC" 
-                          ? "border-accent-primary bg-accent-primary/10 text-accent-primary" 
-                          : "border-white/10 bg-surface-2 text-text-secondary hover:bg-surface-3"
-                      }`}
-                    >
-                      DC
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-text-secondary">Güç (kW)</label>
-                  <input 
-                    type="number" 
-                    className="w-full bg-surface-2 border border-white/10 rounded-xl p-4 text-white placeholder-text-tertiary focus:border-accent-primary focus:ring-1 focus:ring-accent-primary outline-none transition"
-                    value={formData.power}
-                    onChange={(e) => setFormData({...formData, power: Number(e.target.value)})}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-text-secondary">Soket Tipi</label>
-                <select 
-                  className="w-full bg-surface-2 border border-white/10 rounded-xl p-4 text-white focus:border-accent-primary focus:ring-1 focus:ring-accent-primary outline-none transition appearance-none"
-                  value={formData.connectorType}
-                  onChange={(e) => setFormData({...formData, connectorType: e.target.value})}
-                >
-                  <option value="Type 2">Type 2 (Mennekes)</option>
-                  <option value="CCS2">CCS2</option>
-                  <option value="CHAdeMO">CHAdeMO</option>
-                </select>
               </div>
             </div>
           )}

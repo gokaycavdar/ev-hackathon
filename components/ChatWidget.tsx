@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { MessageCircle, X, Send, Bot, Zap, Calendar, Loader2 } from "lucide-react";
 import { Card } from "./ui/Card";
+import { authFetch, unwrapResponse, getStoredUserId, getToken } from "@/lib/auth";
 
 type Recommendation = {
   id: number;
@@ -43,19 +44,20 @@ export default function ChatWidget() {
 
   useEffect(() => {
     const initUser = async () => {
-      // Try local storage first
-      const storedId = typeof window !== "undefined" ? localStorage.getItem("ecocharge:userId") : null;
-      if (storedId) setUserId(Number.parseInt(storedId, 10));
+      // If JWT token exists, use stored userId
+      const token = getToken();
+      const storedId = getStoredUserId();
+      if (token && storedId) {
+        setUserId(Number.parseInt(storedId, 10));
+        return;
+      }
 
-      // Sync with demo user from DB
+      // Fallback: demo user when no JWT
       try {
         const res = await fetch("/api/demo-user");
         if (res.ok) {
-          const user = await res.json();
-          setUserId(user.id);
-          if (typeof window !== "undefined") {
-            localStorage.setItem("ecocharge:userId", user.id.toString());
-          }
+          const data = await unwrapResponse<{ id: number }>(res);
+          setUserId(data.id);
         }
       } catch (e) {
         console.error("Failed to sync demo user", e);
@@ -78,15 +80,14 @@ export default function ChatWidget() {
     setIsLoading(true);
 
     try {
-      const res = await fetch("/api/chat", {
+      const res = await authFetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMessage, userId }), // Use dynamic userId
+        body: JSON.stringify({ message: userMessage }),
       });
 
       if (!res.ok) throw new Error("Failed to fetch");
 
-      const data = await res.json();
+      const data = await unwrapResponse<{ role: string; content: string; recommendations?: Recommendation[] }>(res);
       setMessages((prev) => [
         ...prev,
         {
@@ -106,35 +107,31 @@ export default function ChatWidget() {
   };
 
   const handleBook = async (rec: Recommendation) => {
-    if (!userId) {
-      alert("Kullanıcı bilgisi bulunamadı.");
-      return;
-    }
     try {
-      const res = await fetch("/api/reservations", {
+      const res = await authFetch("/api/reservations", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId, // Use dynamic userId
           stationId: rec.id,
-          date: new Date().toISOString(), // Today
+          date: new Date().toISOString(),
           hour: rec.hour,
           isGreen: rec.isGreen,
         }),
       });
 
-      const data = await res.json();
-      if (data.success) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "bot",
-            content: `Harika! ${rec.name} istasyonunda saat ${rec.hour} için randevun oluşturuldu. ${data.user?.coins ?? 0} SmartCoin bakiyen var.`,
-          },
-        ]);
-      } else {
-        alert("Rezervasyon oluşturulamadı: " + data.error);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        alert("Rezervasyon oluşturulamadı: " + (errData.error?.message || "Hata"));
+        return;
       }
+
+      const data = await unwrapResponse<{ id: number }>(res);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "bot",
+          content: `Harika! ${rec.name} istasyonunda saat ${rec.hour} için randevun oluşturuldu.`,
+        },
+      ]);
     } catch (error) {
       alert("Bir hata oluştu.");
     }

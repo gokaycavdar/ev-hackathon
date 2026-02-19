@@ -204,27 +204,37 @@ Station detail endpoint queries active campaigns and applies their discount to s
   - Auth endpoints will work immediately; other endpoints may return auth errors until Phase 19 adds JWT headers
 - **Go backend COMPLETE. Frontend phases begin.**
 
-### ⏳ Phase 17: Frontend — Mock Data Removal
-- `driver/page.tsx` → uncomment API call, remove generateDynamicTimeslots(), remove bestSlotPreview hack
-- `driver/wallet/page.tsx` → remove MOCK_LEADERBOARD, call GET /v1/users/leaderboard
-- `operator/page.tsx` → remove 6 mock generators, use real stats from my-stations API, remove hardcoded "Otowatt"
-- `lib/utils-ai.ts` → remove mock exports (keep getDensityLevel, calculateGreenRewards)
-- `lib/utils-operator-ai.ts` → delete entire file
+### ✅ Phase 17: Frontend — Mock Data Removal (6 tasks)
+- 17.1: `lib/utils-operator-ai.ts` — **DELETED** entire file (random revenue/CO2/load generators)
+- 17.2: `lib/utils-ai.ts` — removed `MOCK_LEADERBOARD`, `generateDynamicTimeslots`, `bestSlotPreview` exports; kept `getDensityLevel`, `calculateGreenRewards`
+- 17.3: `driver/page.tsx` — removed `generateDynamicTimeslots()` usage, uncommented real API call for station timeslots
+- 17.4: `driver/wallet/page.tsx` — removed `MOCK_LEADERBOARD` import/usage, added real `GET /v1/users/leaderboard` fetch
+- 17.5: `operator/page.tsx` — removed 6 mock generators (`generateMonthlyRevenue`, `generateLoadDistribution`, `generateCO2Stats`, `generateHourlyLoad`, `generateReservationTrend`, `generateEnergyMix`), removed mock chart sections, kept only real aggregate stats + per-station table
+- 17.6: `operator/stations/page.tsx` — removed mock data references, aligned with Go backend field names
 
-### ⏳ Phase 18: Frontend — Hardcoded Values & UI Fixes
-- `operator/stations/[id]/page.tsx` → remove hardcoded type/power/connectorType
-- `components/Map.tsx` → remove station.id % 2 formulas
-- `operator/campaigns/page.tsx` → remove mock AI recommendations section
-- General → remove mockLoad/mockStatus references, use density/load from Go backend
+### ✅ Phase 18: Frontend — Hardcoded Values & UI Fixes (5 tasks)
+- 18.1: `operator/stations/[id]/page.tsx` — removed hardcoded `type`, `power`, `connectorType` fields from station edit form (not in DB schema)
+- 18.2: `components/Map.tsx` — removed hardcoded `power` (station.id % 2 formula) and `distance` from map popups (no real data available)
+- 18.3: `operator/campaigns/page.tsx` — removed mock AI recommendations section
+- 18.4: `operator/stations/page.tsx` — fixed field references from `mockLoad`/`mockStatus` to `load`/`status` (matching Go operator DTO)
+- 18.5: General cleanup of remaining hardcoded values
 
-### ⏳ Phase 19: Frontend — JWT Auth Integration
-- `app/page.tsx` → parse token from login/register response, store in localStorage
-- Create `lib/auth.ts` utility → authFetch() wrapper with Authorization: Bearer header
-- Update ALL fetch calls (12+ files) to use authFetch
-- Update ALL response parsing to unwrap `.data` from unified response wrapper
-- Remove userId body/query params from: reservation create, campaigns for-user, my-stations
-- Change reservation completion: PATCH "COMPLETED" → POST /complete
-- Token expiry handling → redirect to login
+### ✅ Phase 19: Frontend — JWT Auth Integration (9 tasks)
+- 19.0: **Go backend mini-fix** — `campaign/handler.go` `List` method changed from `c.Query("ownerId")` to `middleware.GetUserID(c)` (JWT-based)
+- 19.1: **Created `lib/auth.ts`** — utility module with: `getToken()`, `setToken()`, `clearToken()`, `getStoredUserId()`, `setStoredUserId()`, `authFetch()` (auto Bearer header, auto 401 redirect), `unwrapResponse<T>()` (extracts `.data` from `{ success, data }` envelope)
+- 19.2: `app/page.tsx` — updated login/register to parse Go's `{ success, data: { token, user } }` response, store JWT via `setToken()`, store userId via `setStoredUserId()`
+- 19.3: `driver/page.tsx` — converted all fetch calls to `authFetch` + `unwrapResponse`, demo-user fallback only when no JWT token exists, removed `userId` from reservation create body
+- 19.4: `driver/wallet/page.tsx` — converted user profile + leaderboard fetches to `authFetch` + `unwrapResponse`, use `getStoredUserId()` for user profile URL
+- 19.5: `driver/appointments/page.tsx` — converted all fetches to `authFetch`, changed reservation completion from `PATCH { status: "COMPLETED" }` to `POST /api/reservations/${id}/complete`, cancel uses `authFetch`
+- 19.6: **All 6 operator files** — converted to `authFetch` + `unwrapResponse`:
+  - `operator/page.tsx` — removed `?ownerId=` from my-stations
+  - `operator/stations/page.tsx` — removed `?ownerId=` from my-stations
+  - `operator/stations/new/page.tsx` — removed `ownerId` from station create body
+  - `operator/stations/[id]/page.tsx` — authFetch + unwrapResponse for station detail/update
+  - `operator/campaigns/page.tsx` — removed `?ownerId=` from campaigns, removed `ownerId` from campaign create/update body
+  - `operator/settings/page.tsx` — authFetch + unwrapResponse + getStoredUserId
+- 19.7: **ChatWidget + GlobalAIWidget** — converted to `authFetch` + `unwrapResponse`, removed `userId` from chat/reservation bodies, removed `?userId=` from campaigns/for-user, removed `userId || 20` fallback, demo-user only fires when no JWT token
+- 19.8: `npm run build` — **passed with zero TypeScript errors**. Migration status updated (this entry).
 
 ---
 
@@ -270,8 +280,7 @@ Station detail endpoint queries active campaigns and applies their discount to s
 - `cmd/server/main.go` — DI wiring, route registration, DB pool, graceful shutdown
 - `scripts/seed.go` — standalone seed program with linear regression forecasting
 
-### JS Reference (DO NOT MODIFY except next.config.ts and docker-compose.yml)
-- `prisma/schema.prisma`, `prisma/seed.ts`
+### JS API Routes (legacy — superseded by Go backend, kept for reference)
 - `app/api/auth/login/route.ts`, `app/api/auth/register/route.ts`
 - `app/api/stations/route.ts`, `app/api/stations/[id]/route.ts`, `app/api/stations/forecast/route.ts`
 - `app/api/reservations/route.ts`, `app/api/reservations/[id]/route.ts`, `app/api/reservations/[id]/complete/route.ts`
@@ -280,22 +289,34 @@ Station detail endpoint queries active campaigns and applies their discount to s
 - `app/api/users/[id]/route.ts`
 - `app/api/company/my-stations/route.ts`, `app/api/company/my-stations/[id]/route.ts`
 - `app/api/chat/route.ts`, `app/api/demo-user/route.ts`
-- `lib/utils-ai.ts`, `lib/utils-operator-ai.ts`
+- `lib/utils-ai.ts`
+- `prisma/schema.prisma`, `prisma/seed.ts`
 - `docker-compose.yml` (MODIFIED in Phase 15 — added `api` service with healthcheck dependency)
 - `next.config.ts` (MODIFIED in Phase 16 — added proxy rewrite `/api/:path*` → Go backend)
 
-### Frontend Files (Modified in Phases 17-19)
-- `app/(driver)/driver/page.tsx` — Phase 17 (mock removal)
-- `app/(driver)/driver/wallet/page.tsx` — Phase 17 (mock leaderboard)
-- `app/(operator)/operator/page.tsx` — Phase 17 (mock generators)
-- `lib/utils-ai.ts` — Phase 17 (mock exports)
-- `lib/utils-operator-ai.ts` — Phase 17 (delete entire file)
-- `app/(operator)/operator/stations/[id]/page.tsx` — Phase 18 (hardcoded values)
-- `components/Map.tsx` — Phase 18 (id % 2 formulas)
-- `app/(operator)/operator/campaigns/page.tsx` — Phase 18 (mock AI)
-- `app/page.tsx` — Phase 19 (JWT token handling)
-- `lib/auth.ts` — Phase 19 (new file: authFetch utility)
-- 12+ fetch call files — Phase 19 (authFetch + response unwrapping)
+### Frontend Files (Modified/Created/Deleted in Phases 17-19)
+
+#### Created
+- `lib/auth.ts` — Phase 19.1: `getToken`, `setToken`, `clearToken`, `getStoredUserId`, `setStoredUserId`, `authFetch`, `unwrapResponse`
+
+#### Deleted
+- `lib/utils-operator-ai.ts` — Phase 17.1: entire file removed (mock generators)
+
+#### Modified
+- `lib/utils-ai.ts` — Phase 17.2: removed mock exports, kept utility functions
+- `app/page.tsx` — Phase 19.2: JWT token parsing from Go `{ success, data: { token, user } }` response
+- `app/(driver)/driver/page.tsx` — Phases 17.3, 19.3: removed `generateDynamicTimeslots`, authFetch, removed userId from reservation body
+- `app/(driver)/driver/wallet/page.tsx` — Phases 17.4, 19.4: removed MOCK_LEADERBOARD, authFetch + unwrapResponse for profile + leaderboard
+- `app/(driver)/driver/appointments/page.tsx` — Phase 19.5: authFetch, POST /complete for reservation completion
+- `app/(operator)/operator/page.tsx` — Phases 17.5, 19.6: removed 6 mock generators + chart sections, authFetch, removed ?ownerId=
+- `app/(operator)/operator/stations/page.tsx` — Phases 17.6, 18.4, 19.6: authFetch, removed ?ownerId=, fixed load/status field names
+- `app/(operator)/operator/stations/new/page.tsx` — Phase 19.6: authFetch, removed ownerId from body
+- `app/(operator)/operator/stations/[id]/page.tsx` — Phases 18.1, 19.6: removed type/power/connectorType, authFetch + unwrapResponse
+- `app/(operator)/operator/campaigns/page.tsx` — Phases 18.3, 19.6: removed AI recs, authFetch, removed ownerId from body/query
+- `app/(operator)/operator/settings/page.tsx` — Phase 19.6: authFetch + unwrapResponse + getStoredUserId
+- `components/Map.tsx` — Phase 18.2: removed hardcoded power/distance from popups
+- `components/ChatWidget.tsx` — Phase 19.7: authFetch, removed userId from body, demo-user only when no JWT
+- `components/GlobalAIWidget.tsx` — Phase 19.7: authFetch, removed userId from body/query, removed userId||20 fallback, fixed data.data wrapping for forecast
 
 ---
 
@@ -317,10 +338,22 @@ Station detail endpoint queries active campaigns and applies their discount to s
 - **Migrations need manual run:** After `docker-compose up`, run `migrate -database "postgres://admin:admin@localhost:5432/evcharge?sslmode=disable" -path smartcharge-api/db/migrations up` and then seed. Alternative: run seed script which can also create tables.
 - **Go backend is COMPLETE** as of Phase 16. Remaining phases 17-19 are frontend-only.
 
----
+### Frontend Integration Notes (Phases 17-19)
+- **`authFetch()` behavior:** Adds `Authorization: Bearer <token>` header if token exists in localStorage. Auto-sets `Content-Type: application/json` if body is present. On 401 response: clears token, redirects to `/` (login page).
+- **`unwrapResponse<T>()`:** Extracts `.data` from the `{ success, data }` envelope. Throws `Error` with backend's error message on `success: false`.
+- **Response body consumption:** When checking `res.ok` before calling `unwrapResponse()`, ensure the body is only consumed once (`.json()` can only be called once on a Response).
+- **Go operator DTO vs station DTO field names:** Operator endpoints return `load`/`status`; station list endpoint returns `mockLoad`/`mockStatus` (legacy JSON tags, real data). Frontend operator pages use `load`/`status`; Map component uses `mockLoad`/`mockStatus`.
+- **Double-wrapped responses:** `campaigns/for-user` returns `{ success, data: { campaigns: [...] } }` and forecast returns `{ success, data: { forecasts: [...], currentTime: {...} } }`. Frontend must access `data.campaigns` and `data.forecasts` respectively after unwrapping the envelope.
+- **userId/ownerId removal:** All `userId` body params removed (JWT provides identity). All `?ownerId=` query params removed (Go uses `middleware.GetUserID(c)`). `userId` in URL paths like `/api/users/${userId}` remains — Go extracts `:id` from URL.
+- **Demo-user fallback:** Only fires when no JWT token exists in localStorage. Used for dev/testing convenience.
+- **Reservation completion:** Changed from `PATCH /api/reservations/${id}` with `{ status: "COMPLETED" }` body to `POST /api/reservations/${id}/complete` (dedicated Go endpoint).
+- **`npm run build` passes with zero TypeScript errors** after all Phase 17-19 changes.
 
-## Remaining Session Plan
+## Migration Complete
 
-| Session | Phases | What |
-|---------|--------|------|
-| Next | 17 + 18 + 19 | All frontend work in one pass |
+All 19 phases of the JS→Go backend migration are **DONE**:
+- Phases 1-16: Go backend fully built, dockerized, and runnable
+- Phase 17: Frontend mock data removed
+- Phase 18: Frontend hardcoded values fixed
+- Phase 19: Frontend JWT auth integrated, all fetch calls converted to authFetch + unwrapResponse
+- Build verification: `npm run build` passes with zero errors

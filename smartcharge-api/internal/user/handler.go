@@ -36,7 +36,7 @@ func (h *Handler) GetProfile(c *gin.Context) {
 		return
 	}
 
-	// Users can only view their own profile (or we could allow all — keeping simple for hackathon)
+	// Users can only view their own profile (could be extended to allow all profiles)
 	result, err := h.service.GetProfile(c.Request.Context(), id)
 	if err != nil {
 		handleError(c, err)

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { ArrowLeft, BatteryCharging, Calendar, Clock, Leaf, Loader2, Zap, CheckCircle2, X } from "lucide-react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
+import { authFetch, unwrapResponse, getStoredUserId } from "@/lib/auth";
 
 type Reservation = {
   id: number;
@@ -40,13 +41,12 @@ export default function AppointmentsPage() {
   };
 
   const loadReservations = useCallback(async () => {
-    const userId = typeof window !== "undefined" ? localStorage.getItem("ecocharge:userId") : null;
+    const userId = getStoredUserId();
     if (!userId) return;
 
     try {
-      const response = await fetch(`/api/users/${userId}`);
-      if (!response.ok) throw new Error("Randevular alınamadı");
-      const data = (await response.json()) as UserPayload;
+      const response = await authFetch(`/api/users/${userId}`);
+      const data = await unwrapResponse<UserPayload>(response);
       setReservations(data.reservations);
     } catch (err) {
       console.error("Appointments fetch failed", err);
@@ -57,7 +57,7 @@ export default function AppointmentsPage() {
   }, []);
 
   useEffect(() => {
-    const userId = typeof window !== "undefined" ? localStorage.getItem("ecocharge:userId") : null;
+    const userId = getStoredUserId();
     if (!userId) {
       setError("Önce giriş yapmalısınız.");
       setIsLoading(false);
@@ -72,9 +72,8 @@ export default function AppointmentsPage() {
 
   const handleCancel = async (id: number) => {
     try {
-      const res = await fetch(`/api/reservations/${id}`, {
+      const res = await authFetch(`/api/reservations/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "CANCELLED" }),
       });
       if (!res.ok) throw new Error("İptal başarısız");
@@ -91,10 +90,8 @@ export default function AppointmentsPage() {
     if (!activeChargingId) return;
     
     try {
-      const res = await fetch(`/api/reservations/${activeChargingId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "COMPLETED" }),
+      const res = await authFetch(`/api/reservations/${activeChargingId}/complete`, {
+        method: "POST",
       });
       
       if (!res.ok) throw new Error("Tamamlama başarısız");

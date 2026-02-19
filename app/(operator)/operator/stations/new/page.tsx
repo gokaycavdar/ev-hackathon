@@ -14,6 +14,7 @@ import {
   BatteryCharging,
   Save
 } from "lucide-react";
+import { authFetch } from "@/lib/auth";
 
 type StationFormData = {
   name: string;
@@ -64,13 +65,14 @@ export default function NewStationPage() {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      const ownerId = localStorage.getItem("ecocharge:userId") ?? "1";
-      const res = await fetch("/api/stations", {
+      const res = await authFetch("/api/stations", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...formData,
-          ownerId: parseInt(ownerId),
+          name: formData.name,
+          lat: formData.latitude,
+          lng: formData.longitude,
+          address: formData.address,
+          price: formData.price,
         }),
       });
 

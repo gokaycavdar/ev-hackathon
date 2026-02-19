@@ -1,9 +1,10 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Search, Filter, MapPin, BatteryCharging, LayoutList, Map as MapIcon, Plus, LayoutGrid } from "lucide-react";
 import dynamic from "next/dynamic";
+import { authFetch, unwrapResponse } from "@/lib/auth";
 
 const Map = dynamic(() => import("@/components/Map"), { 
   ssr: false,
@@ -14,15 +15,13 @@ type StationSummary = {
   id: number;
   name: string;
   price: number;
-  mockLoad: number;
-  mockStatus: "GREEN" | "YELLOW" | "RED";
+  load: number;
+  status: "GREEN" | "YELLOW" | "RED";
   reservationCount: number;
   greenReservationCount: number;
   lat?: number;
   lng?: number;
-  status?: string;
-  power?: number;
-  type?: string;
+  revenue?: number;
 };
 
 type OperatorResponse = {
@@ -42,14 +41,11 @@ export default function StationsPage() {
   const [viewMode, setViewMode] = useState<"list" | "grid" | "map">("list");
 
   useEffect(() => {
-    const ownerId =
-      typeof window !== "undefined" ? localStorage.getItem("ecocharge:userId") ?? "1" : "1";
-
     const loadStations = async () => {
       try {
-        const response = await fetch(`/api/company/my-stations?ownerId=${ownerId}`);
+        const response = await authFetch("/api/company/my-stations");
         if (!response.ok) throw new Error("İstasyon verisi alınamadı");
-        const payload = (await response.json()) as OperatorResponse;
+        const payload = await unwrapResponse<OperatorResponse>(response);
         setData(payload);
       } catch (err) {
         console.error("Stations load failed", err);
@@ -146,15 +142,15 @@ export default function StationsPage() {
                 <tbody className="divide-y divide-white/5">
                   {filteredStations.map((station) => {
                     const statusColor =
-                      station.mockStatus === "GREEN"
+                      station.status === "GREEN"
                         ? "bg-green-500/10 text-green-400 border border-green-500/20"
-                        : station.mockStatus === "YELLOW"
+                        : station.status === "YELLOW"
                         ? "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
                         : "bg-red-500/10 text-red-400 border border-red-500/20";
                     
                     const statusText = 
-                      station.mockStatus === "GREEN" ? "Düşük Yoğunluk" :
-                      station.mockStatus === "YELLOW" ? "Orta Yoğunluk" : "Yüksek Yoğunluk";
+                      station.status === "GREEN" ? "Düşük Yoğunluk" :
+                      station.status === "YELLOW" ? "Orta Yoğunluk" : "Yüksek Yoğunluk";
 
                     return (
                       <tr key={station.id} className="hover:bg-surface-2/50 transition-colors group">
@@ -172,19 +168,19 @@ export default function StationsPage() {
                         <td className="px-6 py-4">
                           <div className="flex flex-col gap-1.5">
                             <div className="flex items-center justify-between text-xs">
-                              <span className="font-medium text-white">%{station.mockLoad}</span>
+                              <span className="font-medium text-white">%{station.load}</span>
                               <span className="text-text-tertiary">Kapasite</span>
                             </div>
                             <div className="h-1.5 w-28 rounded-full bg-surface-3 overflow-hidden">
                               <div
                                 className={`h-full rounded-full ${
-                                  station.mockStatus === "RED"
+                                  station.status === "RED"
                                     ? "bg-red-500"
-                                    : station.mockStatus === "YELLOW"
+                                    : station.status === "YELLOW"
                                     ? "bg-yellow-500"
                                     : "bg-green-500"
                                 }`}
-                                style={{ width: `${station.mockLoad}%` }}
+                                style={{ width: `${station.load}%` }}
                               />
                             </div>
                           </div>
@@ -244,8 +240,8 @@ export default function StationsPage() {
                   <div className="rounded-lg bg-surface-2 p-3">
                     <p className="text-xs text-text-tertiary mb-1">Yük</p>
                     <div className="flex items-center gap-1.5">
-                      <BatteryCharging size={14} className={station.mockStatus === 'RED' ? 'text-red-400' : 'text-green-400'} />
-                      <span className="text-sm font-medium text-text-secondary">%{station.mockLoad}</span>
+                      <BatteryCharging size={14} className={station.status === 'RED' ? 'text-red-400' : 'text-green-400'} />
+                      <span className="text-sm font-medium text-text-secondary">%{station.load}</span>
                     </div>
                   </div>
                   <div className="rounded-lg bg-surface-2 p-3">
@@ -258,9 +254,9 @@ export default function StationsPage() {
 
                 <div className="flex items-center justify-between border-t border-white/5 pt-4">
                   <div className="flex items-center gap-2">
-                    <span className={`h-2 w-2 rounded-full ${station.mockStatus === 'RED' ? 'bg-red-500' : 'bg-green-500'}`}></span>
+                    <span className={`h-2 w-2 rounded-full ${station.status === 'RED' ? 'bg-red-500' : 'bg-green-500'}`}></span>
                     <span className="text-xs font-medium text-text-secondary">
-                      {station.mockStatus === 'RED' ? 'Yoğun' : 'Müsait'}
+                      {station.status === 'RED' ? 'Yoğun' : 'Müsait'}
                     </span>
                   </div>
                   <span className="text-xs font-bold text-green-400">{station.greenReservationCount} Yeşil Şarj</span>
@@ -277,11 +273,10 @@ export default function StationsPage() {
                name: s.name,
                lat: s.lat || 38.4192,
                lng: s.lng || 27.1287,
-               status: "ACTIVE",
                price: s.price,
-               type: "AC",
-               power: 22
-             }))} />
+               mockLoad: s.load,
+               mockStatus: s.status,
+             }))} onSelect={() => {}} />
           </div>
         )}
       </div>
