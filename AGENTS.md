@@ -12,11 +12,13 @@ SmartCharge is an EV charging ecosystem with a gamified driver experience (coins
 | Backend API | Go 1.25, Gin, SQLC (code-gen from SQL), pgx/v5 | `smartcharge-api/` |
 | Database | PostgreSQL 15 (Docker), 7 tables, golang-migrate | `smartcharge-api/db/` |
 | Infra | Docker Compose (Postgres + Go API) | `docker-compose.yml` |
+| Mobile (planned) | Flutter (driver-only app consuming the Go API directly) | Separate repo |
 
 ### Data Flow
 
 ```
-Browser (port 3000) -> Next.js -> proxy rewrite /api/* -> Go API (port 8080, /v1/*) -> PostgreSQL (port 5432)
+Web Browser (port 3000) -> Next.js -> proxy rewrite /api/* -> Go API (port 8080, /v1/*) -> PostgreSQL (port 5432)
+Flutter App -> Go API (port 8080, /v1/*) -> PostgreSQL (port 5432)
 ```
 
 ### Backend Pattern (Clean Architecture)
@@ -62,6 +64,7 @@ Each domain module has up to 3 files: `dto.go`, `service.go`, `handler.go`.
 - Constructor DI pattern: `NewService(queries *generated.Queries) *Service`
 - SQLC generates the DB layer -- edit `db/queries/*.sql`, then run `make sqlc`
 - Migrations in `db/migrations/` -- run `make migrate-up`
+- All driver-facing endpoints must be mobile-friendly (see `.plan/MOBILE_API.md`)
 
 ### Frontend
 
@@ -77,12 +80,15 @@ This project has a detailed improvement plan in the `.plan/` directory:
 - `.plan/AUDIT.md` - Complete codebase audit findings (security, quality, technical debt)
 - `.plan/ROADMAP.md` - Phased implementation plan with checklists
 - `.plan/REFACTORING.md` - Detailed refactoring proposals for recommendations, badges, and chat
+- `.plan/MOBILE_API.md` - Flutter developer handoff guide (driver API endpoint catalog)
 
 **Before starting any implementation task, read the relevant `.plan/` file to understand the current state and planned approach.**
 
-## Known Critical Issues (Read .plan/AUDIT.md for details)
+## Current Priority: Functional Completeness
 
-1. **Security**: Privilege escalation via role override in registration, no RBAC enforcement, no resource ownership checks
-2. **Mock Systems**: Badges are static/seeded (no earning logic), chat is a hardcoded stub, recommendations use frozen seed-time data
-3. **Code Quality**: 7 duplicate `handleError()` copies, 5 duplicate `parseID()` copies, no tests, no structured logging
-4. **Legacy Names**: `ecocharge:*` localStorage keys, `evcharge` DB name fallback
+The primary goal right now is making the mock/stub systems actually work:
+
+1. **Badges are static** - Seeded in DB, no earning logic. Needs event-driven `BadgeEvaluator`. (See ROADMAP Phase 2)
+2. **Chat is a stub** - User messages ignored, returns hardcoded response. Needs LLM integration. (See ROADMAP Phase 3)
+3. **Recommendations are mocked** - `MockLoad`/`MockStatus` fields, hardcoded `NextGreenHour`. Needs real scoring engine. (See ROADMAP Phase 1)
+4. **Mobile app coming** - A Flutter app will consume the same Go API directly (driver side only). Endpoints must be mobile-ready. (See `.plan/MOBILE_API.md`)

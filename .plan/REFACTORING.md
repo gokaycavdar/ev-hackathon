@@ -1,7 +1,7 @@
 # SmartCharge - Refactoring Proposals
 
 > Last updated: 2026-02-19
-> Detailed technical designs for major feature improvements
+> Detailed technical designs for the 4 major feature improvements
 
 ---
 
@@ -88,7 +88,6 @@ package recommend
 
 import (
     "context"
-    "log/slog"
 
     "smartcharge-api/db/generated"
 )
@@ -96,11 +95,10 @@ import (
 type Service struct {
     queries *generated.Queries
     scorer  Scorer
-    logger  *slog.Logger
 }
 
-func NewService(queries *generated.Queries, scorer Scorer, logger *slog.Logger) *Service {
-    return &Service{queries: queries, scorer: scorer, logger: logger}
+func NewService(queries *generated.Queries, scorer Scorer) *Service {
+    return &Service{queries: queries, scorer: scorer}
 }
 
 func (s *Service) Recommend(ctx context.Context, req ScoreRequest) ([]ScoredStation, error) {
@@ -112,7 +110,7 @@ func (s *Service) Recommend(ctx context.Context, req ScoreRequest) ([]ScoredStat
 
 - `station.Handler` calls `recommend.Service.Recommend()` instead of raw DB query + threshold
 - `chat.Handler` calls `recommend.Service.Recommend()` for context-aware station suggestions
-- Remove `MockLoad`/`MockStatus` from DTO; replace with `Score`, `Status` (derived from score)
+- Remove `MockLoad`/`MockStatus` from DTO; replace with `Load`, `Status` (derived from score)
 
 **Step 5: Data ingestion for retraining**
 
@@ -428,61 +426,3 @@ CREATE TABLE knowledge_embeddings (
 CREATE INDEX idx_embeddings_vector ON knowledge_embeddings
     USING ivfflat (embedding vector_cosine_ops) WITH (lists = 50);
 ```
-
----
-
-## 5. Modular Service Design (Future-Proofing)
-
-### Principle: Interface-Based DI for All AI/ML Components
-
-All AI and ML components should be accessed through Go interfaces, enabling:
-- Swapping implementations without modifying consumers
-- Testing with mock implementations
-- A/B testing different providers or algorithms
-- Graceful degradation when external services are unavailable
-
-### Wiring Example
-
-```go
-// cmd/server/main.go
-func main() {
-    cfg := config.Load()
-
-    // ... DB setup ...
-
-    var scorer recommend.Scorer
-    var aiProvider ai.Provider
-    var badgeEval badge.BadgeEvaluator
-
-    if cfg.GinMode == "release" {
-        scorer = recommend.NewLinearRegressionScorer(queries, logger)
-        aiProvider = ai.NewOpenAIProvider(cfg.OpenAIKey, logger)
-        badgeEval = badge.NewDBEvaluator(queries, logger)
-    } else {
-        scorer = recommend.NewMockScorer()
-        aiProvider = ai.NewMockProvider()
-        badgeEval = badge.NewMockEvaluator()
-    }
-
-    chatService := chat.NewService(queries, aiProvider, scorer, logger)
-    recommendService := recommend.NewService(queries, scorer, logger)
-    reservationService := reservation.NewService(queries, pool, badgeEval, logger)
-
-    // ... handler + router setup ...
-}
-```
-
-### Key Interfaces Summary
-
-| Interface | Package | Purpose |
-|-----------|---------|---------|
-| `ai.Provider` | `internal/ai` | LLM completions and embeddings |
-| `recommend.Scorer` | `internal/recommend` | Multi-factor station scoring |
-| `badge.BadgeEvaluator` | `internal/badge` | Event-driven badge earning |
-
-### Benefits
-
-- **Testability**: Every service can be tested with mock dependencies
-- **Flexibility**: Swap OpenAI for Claude, or LR for XGBoost, with one line change
-- **Resilience**: If LLM API is down, fall back to rule-based responses automatically
-- **Observability**: Each interface boundary is a natural instrumentation point for logging/metrics

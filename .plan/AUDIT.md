@@ -1,7 +1,7 @@
 # SmartCharge - Codebase Audit Report
 
 > Last updated: 2026-02-19
-> Status: Complete audit of all modules
+> Scope: Functional audit of mock/stub systems that need to become real
 
 ---
 
@@ -57,71 +57,3 @@ Badge descriptions define criteria never evaluated (e.g., "Gece tarifesinde 5 sa
 | OPENAI_API_KEY | Placeholder in `.env.example`, NOT loaded by `config.go` | `.env.example`, `internal/config/config.go` |
 | RAG/Embeddings/Vectors | Zero references anywhere | Codebase-wide |
 | Architecture readiness | Clean service pattern, context propagation, easy to extend | `cmd/server/main.go:68` |
-
----
-
-## 4. Security Issues
-
-| # | Issue | Severity | Location |
-|---|-------|----------|----------|
-| S1 | **Privilege escalation**: Users send `{"role":"OPERATOR"}` in register to self-assign operator role, bypassing domain check | CRITICAL | `internal/auth/dto.go:14`, `service.go:100-101` |
-| S2 | **No RBAC enforcement**: `GetUserRole()` defined but never called. Any driver can access operator endpoints | CRITICAL | `internal/middleware/auth.go:79`, `main.go:92-97` |
-| S3 | **No resource ownership checks**: Station/campaign/reservation mutations don't verify requester owns resource | CRITICAL | Multiple service files |
-| S4 | Hardcoded JWT secret fallback `"default-dev-secret"` | HIGH | `internal/config/config.go:22` |
-| S5 | JWT secret exposed in `docker-compose.yml` (tracked in git) | HIGH | `docker-compose.yml:27` |
-| S6 | Hardcoded CORS localhost origins always allowed | MEDIUM | `internal/middleware/cors.go:15-16` |
-| S7 | Chat endpoint has no auth middleware | MEDIUM | `cmd/server/main.go:98` |
-| S8 | No rate limiting on any endpoint | MEDIUM | Codebase-wide |
-
----
-
-## 5. Code Quality Issues
-
-| # | Issue | Severity | Location |
-|---|-------|----------|----------|
-| Q1 | 7 identical copies of `handleError()` across all handler files | HIGH | All `handler.go` files |
-| Q2 | 5 copies of `parseID()` across handler files | HIGH | station/reservation/user/campaign/operator handlers |
-| Q3 | 4 duplicate badge DTO structs (`BadgeItem` in auth + user, `BadgeResponse` in badge + campaign) | HIGH | `auth/dto.go`, `user/dto.go`, `badge/service.go`, `campaign/dto.go` |
-| Q4 | Services swallow original errors - `return apperrors.ErrInternal` loses actual error | HIGH | All `service.go` files |
-| Q5 | Campaign badge linking silently ignores errors | MEDIUM | `internal/campaign/service.go:139,216-221,242` |
-| Q6 | `MockLoad`/`MockStatus` field names are misleading (data is real, from DB density) | MEDIUM | `internal/station/dto.go:34-35` |
-| Q7 | Zero test files (`*_test.go`) exist | HIGH | Codebase-wide |
-| Q8 | Dead code: `ParseToken()` never called | LOW | `internal/auth/jwt.go:23` |
-| Q9 | Dead code: `Paginated()` never used | LOW | `internal/response/response.go:47` |
-
----
-
-## 6. Database Issues
-
-| # | Issue | Severity | Location |
-|---|-------|----------|----------|
-| D1 | No CHECK constraint on `users.role` (accepts any string) | HIGH | `migrations:9` |
-| D2 | No CHECK constraint on `reservations.status` | HIGH | `migrations:38` |
-| D3 | No CHECK constraint on `campaigns.status` | HIGH | `migrations:58` |
-| D4 | No CHECK on `stations.density_profile` | MEDIUM | `migrations:26` |
-| D5 | `user_badges` has no `earned_at` timestamp | MEDIUM | `migrations:48-52` |
-| D6 | `reservations` has no `created_at` / `updated_at` | MEDIUM | `migrations:29-39` |
-| D7 | Missing index on `reservations.status` | LOW | Schema |
-
----
-
-## 7. Logging & Observability
-
-| Finding | Location |
-|---------|----------|
-| Only `log.Println`/`log.Fatalf` from stdlib, exclusively in `main.go` | `cmd/server/main.go` |
-| Zero logging in any service or handler | All internal modules |
-| Errors returned as generic `apperrors.ErrInternal` - original context lost | All service files |
-| No structured logging, no request ID, no correlation tracing | Codebase-wide |
-
----
-
-## 8. Legacy/Redundancy Issues
-
-| # | Issue | Location | Action |
-|---|-------|----------|--------|
-| R1 | localStorage keys use old name `ecocharge:*` | `lib/auth.ts:6-7`, `app/page.tsx:88-89` | Rename to `smartcharge:*` |
-| R2 | Fallback DB name `evcharge` | `internal/config/config.go:21` | Rename to `smartcharge` |
-| R3 | 359-line `MIGRATION_STATUS.md` dev journal | `smartcharge-api/MIGRATION_STATUS.md` | Archive or delete |
-| R4 | README says password is `password123`, seed uses `demo123` | `README.md` vs `seed.go` | Fix README |
-| R5 | No old Prisma files or `app/api` routes remain | Confirmed clean | No action |
