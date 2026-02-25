@@ -42,7 +42,7 @@ The frontend proxies all `/api/*` requests to the Go backend at `http://localhos
 ### 1. Clone and configure
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/gokaycavdar/smartcharge.git
 cd smartcharge
 ```
 
@@ -140,9 +140,15 @@ smartcharge/
 ### Running the Go API locally (without Docker)
 
 ```bash
+# Sadece PostgreSQL başlat
+docker run --name smartcharge-db -e POSTGRES_USER=admin -e POSTGRES_PASSWORD=admin -e POSTGRES_DB=evcharge -p 5432:5432 -d postgres:15
+
+# Sonra migration + seed + API
 cd smartcharge-api
-cp .env.example .env        # Edit DATABASE_URL if needed
-make run                    # or: go run ./cmd/server
+migrate -database "postgres://admin:admin@localhost:5432/evcharge?sslmode=disable" -path db/migrations up
+go run ./scripts/seed.go
+go run ./cmd/server
+
 ```
 
 The API starts at `http://localhost:8080`. Health check: `GET /health`.
