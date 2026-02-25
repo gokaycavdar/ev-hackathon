@@ -53,7 +53,7 @@ Copy environment files:
 cp .env.example .env
 
 # Backend
-cp smartcharge-api/.env.example smartcharge-api/.env
+cp .env.example smartcharge-api/.env
 ```
 
 ### 2. Start the database and API
