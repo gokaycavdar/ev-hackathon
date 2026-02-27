@@ -18,7 +18,27 @@ type ForecastRecommendation = {
   coins: number;
 };
 
-// Tab 2: Sana Özel (Badge bazlı kampanyalar)
+// Tab 2: Sana Özel (AI/RL bazlı kampanyalar + öneriler)
+type AIRecommendation = {
+  id: number;
+  name: string;
+  hour: string;
+  coins: number;
+  reason: string;
+  isGreen: boolean;
+};
+
+type ScoredStation = {
+  stationId?: number;
+  StationID?: number;
+  score?: number;
+  Score?: number;
+  components?: Record<string, number | undefined>;
+  Components?: Record<string, number | undefined>;
+  explanation?: string;
+  Explanation?: string;
+};
+
 type PersonalizedCampaign = {
   id: number;
   title: string;
@@ -48,6 +68,11 @@ export default function GlobalAIWidget() {
   // Tab 2 state
   const [campaigns, setCampaigns] = useState<PersonalizedCampaign[]>([]);
   const [userBadges, setUserBadges] = useState<Badge[]>([]);
+  const [aiRecs, setAiRecs] = useState<AIRecommendation[]>([]);
+  const [aiMessage, setAiMessage] = useState<string>("");
+  const [rlRecs, setRlRecs] = useState<ScoredStation[]>([]);
+  const [rlStations, setRlStations] = useState<Record<number, { name: string; lat: number; lng: number; price: number; address?: string }>>({});
+  const [algorithm, setAlgorithm] = useState<string>("");
 
   // Common state
   const [isLoading, setIsLoading] = useState(false);
@@ -93,10 +118,20 @@ export default function GlobalAIWidget() {
       Promise.all([
         // Tab 1: Forecast verileri
         authFetch("/api/stations/forecast").then(res => res.json()),
-        // Tab 2: Personalized kampanyalar
-        authFetch("/api/campaigns/for-user").then(res => res.json()).catch(() => ({ success: false }))
+        // Tab 2: Personalized kampanyalar + AI öneriler
+        authFetch("/api/campaigns/for-user").then(res => res.json()).catch(() => ({ success: false })),
+        // AI/RL önerileri (chat endpoint)
+        fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: "En iyi istasyonları öner" })
+        }).then(res => res.json()).catch(() => ({ success: false })),
+        // RL Scored stations
+        authFetch("/api/stations/recommend?limit=5").then(res => res.json()).catch(() => ({ success: false })),
+        // All stations for RL mapping
+        authFetch("/api/stations").then(res => res.json()).catch(() => ({ success: false }))
       ])
-        .then(([forecastData, campaignData]) => {
+        .then(([forecastData, campaignData, chatData, rlData, stationsData]) => {
           // Tab 1: En düşük yoğunluklu 3 istasyonu al
           if (forecastData.success && forecastData.data?.forecasts) {
             setCurrentTime(forecastData.data.currentTime);
@@ -118,6 +153,27 @@ export default function GlobalAIWidget() {
           if (campaignData.success && campaignData.data) {
             setCampaigns(campaignData.data.campaigns || []);
             setUserBadges(campaignData.data.userBadges || []);
+          }
+
+          // Tab 2: AI/RL Önerileri
+          if (chatData.success && chatData.data?.recommendations) {
+            setAiRecs(chatData.data.recommendations);
+            setAiMessage(chatData.data.content || "");
+          }
+
+          // Tab 2: RL Scored Stations
+          if (rlData.success && rlData.data?.results) {
+            setRlRecs(rlData.data.results || []);
+            setAlgorithm(rlData.data.algorithm || "");
+          }
+
+          // Stations for RL mapping
+          if (stationsData.success && Array.isArray(stationsData.data)) {
+            const stationMap: Record<number, { name: string; lat: number; lng: number; price: number; address?: string }> = {};
+            stationsData.data.forEach((s: any) => {
+              stationMap[s.id] = { name: s.name, lat: s.lat, lng: s.lng, price: s.price, address: s.address };
+            });
+            setRlStations(stationMap);
           }
 
           setIsLoading(false);
@@ -180,11 +236,11 @@ export default function GlobalAIWidget() {
 
       {/* Modal */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="relative w-full max-w-5xl overflow-hidden rounded-[2rem] border border-slate-600 bg-slate-800 shadow-2xl ring-1 ring-white/10">
-
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200 overflow-y-auto">
+          <div className="relative w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-[2rem] border border-slate-600 bg-slate-800 shadow-2xl ring-1 ring-white/10 my-8">
+            
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-700 bg-slate-800/50 px-8 py-6 backdrop-blur-xl">
+            <div className="flex items-center justify-between border-b border-slate-700 bg-slate-800/50 px-6 py-4 backdrop-blur-xl shrink-0">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/20 text-purple-400">
                   <Sparkles className="h-6 w-6" />
@@ -234,7 +290,7 @@ export default function GlobalAIWidget() {
             </div>
 
             {/* Content */}
-            <div className="p-8">
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
               {successMsg ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center animate-in fade-in zoom-in duration-300">
                   <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-green-500/20 text-green-400 ring-1 ring-green-500/40 shadow-lg shadow-green-500/20">
@@ -356,8 +412,146 @@ export default function GlobalAIWidget() {
                   </div>
                 </div>
               ) : (
-                /* TAB 2: Sana Özel - Badge Bazlı Kampanyalar */
+                /* TAB 2: Sana Özel - AI/RL Öneriler + Badge Bazlı Kampanyalar */
                 <div>
+                  {/* AI/RL Recommendations - Always show first */}
+                  {aiRecs.length > 0 && (
+                    <div className="mb-8">
+                      <div className="mb-4 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                        <div className="flex items-center gap-2 text-blue-400 text-sm">
+                          <Sparkles className="h-4 w-4" />
+                          <span className="font-medium">AI Önerileri - Seni İçin Seçtim</span>
+                        </div>
+                        {aiMessage && <p className="text-slate-300 text-sm mt-2">{aiMessage}</p>}
+                      </div>
+
+                      <div className="grid gap-6 md:grid-cols-3">
+                        {aiRecs.map((rec, idx) => (
+                          <div
+                            key={rec.id}
+                            className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-blue-500/30 bg-slate-800/50 p-6 transition-all hover:border-blue-500/60 hover:bg-slate-800 hover:shadow-xl hover:shadow-blue-900/20"
+                          >
+                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 opacity-0 transition group-hover:opacity-100" />
+
+                            <div className="relative z-10">
+                              <div className="mb-4 flex flex-wrap gap-2">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2.5 py-1 text-xs font-bold text-blue-400 border border-blue-500/20">
+                                  <Sparkles className="h-3 w-3" /> #{idx + 1} AI Seçimi
+                                </span>
+                                {rec.isGreen && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2.5 py-1 text-xs font-bold text-green-400 border border-green-500/20">
+                                    Yeşil Enerji
+                                  </span>
+                                )}
+                              </div>
+
+                              <h3 className="text-xl font-bold text-white mb-1">{rec.name}</h3>
+                              <p className="text-sm text-slate-400 mb-4">{rec.reason}</p>
+
+                              <div className="space-y-3 mb-6">
+                                <div className="flex items-center gap-3 text-sm text-slate-300">
+                                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-700/50 text-slate-400">
+                                    <Clock className="h-4 w-4" />
+                                  </div>
+                                  <span className="font-medium">{rec.hour}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="mt-auto relative z-10">
+                              <div className="mb-4 flex items-center justify-between rounded-xl bg-slate-900/50 px-4 py-3 border border-slate-700/50">
+                                <span className="text-xs font-medium text-slate-400">Kazanç</span>
+                                <span className="font-bold text-yellow-400">+{rec.coins} Coin</span>
+                              </div>
+
+                              <button
+                                onClick={() => handleInspect(rec.id)}
+                                className="group/btn flex w-full items-center justify-center gap-2 rounded-xl bg-blue-500 py-3.5 text-sm font-bold text-white transition hover:bg-blue-400 active:scale-95"
+                              >
+                                İstasyona Git
+                                <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* RL Scored Recommendations */}
+                  {rlRecs.length > 0 && (
+                    <div className="mb-8">
+                      <div className="mb-4 p-4 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                        <div className="flex items-center gap-2 text-purple-400 text-sm">
+                          <Sparkles className="h-4 w-4" />
+                          <span className="font-medium">RL Puanlama - {algorithm} algoritması</span>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-6 md:grid-cols-3">
+                        {rlRecs.map((rec, idx) => {
+                          const stationId = rec.stationId ?? rec.StationID ?? 0;
+                          const station = rlStations[stationId];
+                          const score = Math.round(rec.score ?? rec.Score ?? 0);
+                          const components = rec.components ?? rec.Components ?? {};
+                          const loadScore = Math.round(components.load ?? components.Load ?? 0);
+                          const greenScore = Math.round(components.green ?? components.Green ?? 0);
+                          const rlBonus = components.rl_bonus ?? components.q_value ?? 0;
+                          
+                          return (
+                            <div
+                              key={stationId}
+                              className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-purple-500/30 bg-slate-800/50 p-6 transition-all hover:border-purple-500/60 hover:bg-slate-800 hover:shadow-xl hover:shadow-purple-900/20"
+                            >
+                              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-purple-500/5 to-pink-500/5 opacity-0 transition group-hover:opacity-100" />
+
+                              <div className="relative z-10">
+                                <div className="mb-4 flex flex-wrap gap-2">
+                                  <span className="inline-flex items-center justify-center rounded-full bg-purple-500 px-3 py-1 text-xs font-bold text-white">
+                                    #{idx + 1}
+                                  </span>
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/10 px-2.5 py-1 text-xs font-bold text-purple-400 border border-purple-500/20">
+                                    <Sparkles className="h-3 w-3" /> {score} Puan
+                                  </span>
+                                </div>
+
+                                <h3 className="text-xl font-bold text-white mb-1">{station?.name || `İstasyon #${stationId}`}</h3>
+                                <p className="text-sm text-slate-400 mb-4">{rec.explanation ?? rec.Explanation}</p>
+
+                                <div className="space-y-2 mb-4">
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="text-slate-400">Yoğunluk</span>
+                                    <span className="font-medium text-white">{loadScore}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="text-slate-400">Yeşil</span>
+                                    <span className="font-medium text-white">{greenScore}</span>
+                                  </div>
+                                  {rlBonus > 0 && (
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className="text-purple-400">RL Bonus</span>
+                                      <span className="font-medium text-purple-300">+{Math.round(rlBonus)}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="mt-auto relative z-10">
+                                <button
+                                  onClick={() => handleInspect(stationId)}
+                                  className="group/btn flex w-full items-center justify-center gap-2 rounded-xl bg-purple-500 py-3.5 text-sm font-bold text-white transition hover:bg-purple-400 active:scale-95"
+                                >
+                                  İstasyona Git
+                                  <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* User Badges */}
                   {userBadges.length > 0 && (
                     <div className="mb-6 p-4 rounded-xl bg-purple-500/10 border border-purple-500/20">
