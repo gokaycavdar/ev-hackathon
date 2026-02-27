@@ -22,6 +22,7 @@ import (
 	"smartcharge-api/internal/demouser"
 	"smartcharge-api/internal/middleware"
 	"smartcharge-api/internal/operator"
+	"smartcharge-api/internal/recommend"
 	"smartcharge-api/internal/reservation"
 	"smartcharge-api/internal/station"
 	"smartcharge-api/internal/user"
@@ -66,10 +67,14 @@ func main() {
 	campaignService := campaign.NewService(queries)
 	operatorService := operator.NewService(queries)
 	chatService := chat.NewService(queries)
+	
+	// Recommend service - uses RL scorer by default
+	rlScorer := recommend.NewRLScorer(queries)
+	recommendService := recommend.NewService(queries, rlScorer)
 
 	// ── Handlers ──────────────────────────────────────────
 	authHandler := auth.NewHandler(authService)
-	stationHandler := station.NewHandler(stationService)
+	stationHandler := station.NewHandler(stationService, recommendService)
 	reservationHandler := reservation.NewHandler(reservationService)
 	userHandler := user.NewHandler(userService)
 	badgeHandler := badge.NewHandler(badgeService)
