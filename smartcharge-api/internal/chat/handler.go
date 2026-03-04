@@ -7,6 +7,15 @@ import (
 	"smartcharge-api/internal/response"
 )
 
+// ChatRequest is the request body for the chat endpoint.
+type ChatRequest struct {
+	Message   string `json:"message" binding:"required"`
+	StationID *int32 `json:"stationId,omitempty"`
+	Date      string `json:"date,omitempty"`
+	Hour      string `json:"hour,omitempty"`
+	IsGreen   *bool  `json:"isGreen,omitempty"`
+}
+
 // Handler handles HTTP requests for the chat endpoint.
 type Handler struct {
 	service *Service
@@ -23,12 +32,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 // Chat handles POST /v1/chat.
-// Stub: ignores the message body, returns static Turkish response + 3 station recommendations.
 func (h *Handler) Chat(c *gin.Context) {
-	// We accept the body but don't use it (stub)
-	_ = c.Request.Body
+	var req ChatRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Err(c, 400, "VALIDATION_ERROR", "Mesaj alanı zorunludur")
+		return
+	}
 
-	result, err := h.service.Chat(c.Request.Context())
+	result, err := h.service.Chat(c.Request.Context(), req.Message, req.StationID, req.Date, req.Hour, req.IsGreen)
 	if err != nil {
 		handleError(c, err)
 		return

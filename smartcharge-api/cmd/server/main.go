@@ -66,8 +66,8 @@ func main() {
 	badgeService := badge.NewService(queries)
 	campaignService := campaign.NewService(queries)
 	operatorService := operator.NewService(queries)
-	chatService := chat.NewService(queries)
-	
+	chatService := chat.NewService(queries, reservationService, cfg)
+
 	// Recommend service - uses RL scorer by default
 	rlScorer := recommend.NewRLScorer(queries)
 	recommendService := recommend.NewService(queries, rlScorer)

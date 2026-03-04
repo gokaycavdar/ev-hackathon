@@ -12,6 +12,8 @@ type Config struct {
 	Port        string
 	GinMode     string
 	FrontendURL string
+	LLMURL      string
+	LLMModel    string
 }
 
 func Load() *Config {
@@ -23,6 +25,8 @@ func Load() *Config {
 		Port:        getEnv("PORT", "8080"),
 		GinMode:     getEnv("GIN_MODE", "debug"),
 		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:3000"),
+		LLMURL:      getEnv("LLM_URL", "http://localhost:11434"),
+		LLMModel:    getEnv("LLM_MODEL", "llama3.2"),
 	}
 
 	return cfg
