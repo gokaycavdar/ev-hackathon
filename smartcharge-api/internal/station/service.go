@@ -142,10 +142,7 @@ func (s *Service) GetStation(ctx context.Context, stationID int32) (*StationDeta
 			load = forecastLoad
 		}
 
-		status := "RED"
-		if green {
-			status = "GREEN"
-		}
+		status := loadStatus(load)
 
 		var campaignApplied *CampaignApplied
 		if activeCampaign != nil {

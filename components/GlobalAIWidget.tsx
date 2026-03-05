@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Zap, X, MapPin, ArrowRight, Sparkles, Clock, BatteryCharging, Coins, ExternalLink, TrendingDown, Gift, Award } from "lucide-react";
 import { authFetch, unwrapResponse, getStoredUserId, getToken } from "@/lib/auth";
+import { useGeolocation } from "@/lib/useGeolocation";
 
 // Tab 1: Şu An En Müsait (Forecast bazlı)
 type ForecastRecommendation = {
@@ -60,6 +61,7 @@ type Badge = {
 export default function GlobalAIWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"forecast" | "personalized">("forecast");
+  const geo = useGeolocation();
 
   // Tab 1 state
   const [forecastRecs, setForecastRecs] = useState<ForecastRecommendation[]>([]);
@@ -127,7 +129,7 @@ export default function GlobalAIWidget() {
           body: JSON.stringify({ message: "En iyi istasyonları öner" })
         }).then(res => res.json()).catch(() => ({ success: false })),
         // RL Scored stations
-        authFetch("/api/stations/recommend?limit=5").then(res => res.json()).catch(() => ({ success: false })),
+        authFetch(`/api/stations/recommend?limit=5${geo.lat != null && geo.lng != null ? `&lat=${geo.lat}&lng=${geo.lng}` : ""}`).then(res => res.json()).catch(() => ({ success: false })),
         // All stations for RL mapping
         authFetch("/api/stations").then(res => res.json()).catch(() => ({ success: false }))
       ])
@@ -135,17 +137,20 @@ export default function GlobalAIWidget() {
           // Tab 1: En düşük yoğunluklu 3 istasyonu al
           if (forecastData.success && forecastData.data?.forecasts) {
             setCurrentTime(forecastData.data.currentTime);
-            const topRecs = forecastData.data.forecasts.slice(0, 3).map((f: any, idx: number) => ({
-              stationId: f.stationId,
-              stationName: f.stationName,
-              lat: f.lat,
-              lng: f.lng,
-              price: f.price,
-              address: f.address,
-              predictedLoad: f.predictedLoad,
-              slot: `${f.hour.toString().padStart(2, "0")}:00 - ${((f.hour + 1) % 24).toString().padStart(2, "0")}:00`,
-              coins: f.predictedLoad < 30 ? 50 : f.predictedLoad < 50 ? 35 : 20,
-            }));
+            const topRecs = forecastData.data.forecasts.slice(0, 3).map((f: any, idx: number) => {
+              const isGreen = f.hour >= 23 || f.hour <= 6;
+              return {
+                stationId: f.stationId,
+                stationName: f.stationName,
+                lat: f.lat,
+                lng: f.lng,
+                price: f.price,
+                address: f.address,
+                predictedLoad: f.predictedLoad,
+                slot: `${f.hour.toString().padStart(2, "0")}:00 - ${((f.hour + 1) % 24).toString().padStart(2, "0")}:00`,
+                coins: isGreen ? 50 : 10,
+              };
+            });
             setForecastRecs(topRecs);
           }
 

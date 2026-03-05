@@ -26,6 +26,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, authMiddleware gin.Handler
 
 	reservations.POST("", h.Create)
 	reservations.PATCH("/:id", h.UpdateStatus)
+	reservations.POST("/:id/confirm", h.Confirm)
+	reservations.POST("/:id/start", h.StartCharging)
 	reservations.POST("/:id/complete", h.Complete)
 }
 
@@ -53,6 +55,12 @@ func (h *Handler) Create(c *gin.Context) {
 
 // UpdateStatus handles PATCH /v1/reservations/:id.
 func (h *Handler) UpdateStatus(c *gin.Context) {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		response.Err(c, 401, "AUTH_UNAUTHORIZED", "Authentication required")
+		return
+	}
+
 	id, err := parseID(c)
 	if err != nil {
 		return
@@ -64,7 +72,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.UpdateStatus(c.Request.Context(), id, req); err != nil {
+	if err := h.service.UpdateStatus(c.Request.Context(), id, userID, req); err != nil {
 		handleError(c, err)
 		return
 	}
@@ -73,12 +81,60 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 
 // Complete handles POST /v1/reservations/:id/complete.
 func (h *Handler) Complete(c *gin.Context) {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		response.Err(c, 401, "AUTH_UNAUTHORIZED", "Authentication required")
+		return
+	}
+
 	id, err := parseID(c)
 	if err != nil {
 		return
 	}
 
-	result, err := h.service.Complete(c.Request.Context(), id)
+	result, err := h.service.Complete(c.Request.Context(), id, userID)
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+	response.OK(c, result)
+}
+
+// Confirm handles POST /v1/reservations/:id/confirm.
+func (h *Handler) Confirm(c *gin.Context) {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		response.Err(c, 401, "AUTH_UNAUTHORIZED", "Authentication required")
+		return
+	}
+
+	id, err := parseID(c)
+	if err != nil {
+		return
+	}
+
+	result, err := h.service.Confirm(c.Request.Context(), id, userID)
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+	response.OK(c, result)
+}
+
+// StartCharging handles POST /v1/reservations/:id/start.
+func (h *Handler) StartCharging(c *gin.Context) {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		response.Err(c, 401, "AUTH_UNAUTHORIZED", "Authentication required")
+		return
+	}
+
+	id, err := parseID(c)
+	if err != nil {
+		return
+	}
+
+	result, err := h.service.StartCharging(c.Request.Context(), id, userID)
 	if err != nil {
 		handleError(c, err)
 		return

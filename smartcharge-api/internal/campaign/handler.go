@@ -33,9 +33,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, authMiddleware gin.Handler
 }
 
 // ListForUser handles GET /v1/campaigns/for-user.
-// Stub: returns all active campaigns with matchedBadges: [].
+// Returns all active campaigns with matchedBadges populated from user's earned badges.
 func (h *Handler) ListForUser(c *gin.Context) {
-	campaigns, err := h.service.ListForUser(c.Request.Context())
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		response.Err(c, 401, "AUTH_UNAUTHORIZED", "Authentication required")
+		return
+	}
+
+	campaigns, err := h.service.ListForUser(c.Request.Context(), userID)
 	if err != nil {
 		handleError(c, err)
 		return

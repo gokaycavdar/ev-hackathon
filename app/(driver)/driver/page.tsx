@@ -3,9 +3,10 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { BatteryCharging, Leaf, Loader2, Zap, X, PartyPopper, Megaphone, Sparkles, MapPin, ArrowRight, Navigation } from "lucide-react";
+import { Leaf, Loader2, Zap, X, PartyPopper, Megaphone, Sparkles, MapPin, ArrowRight } from "lucide-react";
 import type { StationMarker } from "@/components/Map";
 import { authFetch, unwrapResponse, getStoredUserId, getToken, setStoredUserId } from "@/lib/auth";
+import { useGeolocation } from "@/lib/useGeolocation";
 
 const Map = dynamic(async () => (await import("@/components/Map")).default, { ssr: false });
 
@@ -29,6 +30,13 @@ type ToastState = {
   detail?: string;
 } | null;
 
+type ScoredStation = {
+  stationId: number;
+  score: number;
+  components: Record<string, number>;
+  explanation: string;
+};
+
 export default function DriverDashboardPage() {
   return (
     <Suspense fallback={<div className="flex h-screen items-center justify-center bg-slate-700 text-white">Yükleniyor...</div>}>
@@ -47,6 +55,10 @@ function DriverDashboard() {
   const [userId, setUserId] = useState<number | null>(null);
   const [toast, setToast] = useState<ToastState>(null);
   const [filterMode, setFilterMode] = useState<"ALL" | "ECO">("ALL");
+  const [aiRecs, setAiRecs] = useState<ScoredStation[]>([]);
+  const [isLoadingRecs, setIsLoadingRecs] = useState(false);
+
+  const geo = useGeolocation();
 
   const searchParams = useSearchParams();
   const stationIdParam = searchParams.get("stationId");
@@ -121,13 +133,35 @@ function DriverDashboard() {
     }
   }, []);
 
+  const fetchRecommendations = useCallback(async () => {
+    setIsLoadingRecs(true);
+    try {
+      const params = new URLSearchParams({ limit: "5" });
+      if (geo.lat != null && geo.lng != null) {
+        params.set("lat", String(geo.lat));
+        params.set("lng", String(geo.lng));
+      }
+      const response = await authFetch(`/api/stations/recommend?${params.toString()}`);
+      const data = await response.json();
+      if (data.success && data.data?.results) {
+        setAiRecs(data.data.results);
+      }
+    } catch (error) {
+      console.error("Recommendation fetch failed", error);
+    } finally {
+      setIsLoadingRecs(false);
+    }
+  }, [geo.lat, geo.lng]);
+
   const handleStationSelect = useCallback((station: StationMarker) => {
     setSelectedStation(station);
     // Automatically open details when selected from map popup or sidebar
     setIsDetailsOpen(true);
     setSlots([]);
+    setAiRecs([]);
     void fetchSlots(station);
-  }, [fetchSlots]);
+    void fetchRecommendations();
+  }, [fetchSlots, fetchRecommendations]);
 
   useEffect(() => {
     if (stationIdParam && stations.length > 0) {
@@ -237,30 +271,33 @@ function DriverDashboard() {
     };
   }, [selectedStation, slots]);
 
-  const recommendation = useMemo(() => {
-    if (!selectedStation || !stations.length) return null;
-    
-    // If current station is not busy (GREEN), no need for recommendation
-    if (selectedStation.mockStatus === "GREEN") return null;
+  // Get the best AI-recommended alternative station (excluding the currently selected one)
+  const aiRecommendation = useMemo(() => {
+    if (!selectedStation || aiRecs.length === 0 || stations.length === 0) return null;
 
-    // Find stations that are NOT RED (High Density)
-    // User explicitly said proximity is less important than density
-    const betterStations = stations.filter(s => 
-      s.id !== selectedStation.id && 
-      s.mockStatus !== "RED" // Filter out other high density stations
-    );
+    // Find the top-scored station that isn't the currently selected one
+    for (const rec of aiRecs) {
+      if (rec.stationId !== selectedStation.id) {
+        const station = stations.find(s => s.id === rec.stationId);
+        if (station) {
+          return { station, scored: rec };
+        }
+      }
+    }
+    return null;
+  }, [selectedStation, aiRecs, stations]);
 
-    if (betterStations.length === 0) return null;
-
-    // Pick the one with lowest load
-    return betterStations.sort((a, b) => (a.mockLoad || 100) - (b.mockLoad || 100))[0];
-  }, [selectedStation, stations]);
+  // Check if the current selected station ranks well in AI recommendations
+  const currentStationScore = useMemo(() => {
+    if (!selectedStation || aiRecs.length === 0) return null;
+    return aiRecs.find(r => r.stationId === selectedStation.id) || null;
+  }, [selectedStation, aiRecs]);
 
   return (
     <div className="relative min-h-screen bg-slate-700">
       <div className="absolute inset-0 bg-gradient-to-br from-slate-700 via-slate-800 to-blue-900/40" />
       <div className="relative z-10 h-screen w-full">
-        <Map stations={stations} onSelect={handleStationSelect} onMapClick={handleMapClick} />
+        <Map stations={stations} onSelect={handleStationSelect} onMapClick={handleMapClick} userLocation={geo.lat && geo.lng ? { lat: geo.lat, lng: geo.lng } : null} />
       </div>
 
       {/* Small Station Preview Card - REMOVED (Moved to Map Popup) */}
@@ -273,8 +310,8 @@ function DriverDashboard() {
             <div className="flex items-center justify-between border-b border-slate-700 bg-slate-900/50 px-8 py-6 backdrop-blur-xl">
               <div className="flex items-center gap-4">
                 <div className={`flex h-12 w-12 items-center justify-center rounded-full border-2 shadow-lg ${
-                  selectedStation.mockStatus === "RED" ? "border-red-500 bg-red-500/20 text-red-400" :
-                  selectedStation.mockStatus === "YELLOW" ? "border-yellow-500 bg-yellow-500/20 text-yellow-400" :
+                  selectedStation.status === "RED" ? "border-red-500 bg-red-500/20 text-red-400" :
+                  selectedStation.status === "YELLOW" ? "border-yellow-500 bg-yellow-500/20 text-yellow-400" :
                   "border-green-500 bg-green-500/20 text-green-400"
                 }`}>
                   <Zap className="h-6 w-6" />
@@ -283,8 +320,8 @@ function DriverDashboard() {
                   <h2 className="text-2xl font-bold text-white tracking-tight">{modalTitle}</h2>
                   <div className="flex items-center gap-2 text-sm text-slate-400">
                     <span className="flex items-center gap-1">
-                      {selectedStation.mockStatus === "RED" ? "Yüksek Yoğunluk" : 
-                       selectedStation.mockStatus === "YELLOW" ? "Orta Yoğunluk" : "Düşük Yoğunluk"}
+                      {selectedStation.status === "RED" ? "Yüksek Yoğunluk" : 
+                       selectedStation.status === "YELLOW" ? "Orta Yoğunluk" : "Düşük Yoğunluk"}
                     </span>
                     <span>•</span>
                     <span>{selectedStation.price.toFixed(2)} ₺/kWh</span>
@@ -335,49 +372,86 @@ function DriverDashboard() {
                     <p>Uygun saatler hesaplanıyor...</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                    {slots
-                      .filter(s => filterMode === "ALL" || s.isGreen)
-                      .map((slot) => {
+                  <div className="space-y-6">
+                    {[
+                      { label: "Gece", range: "00:00 – 05:00", hours: [0,1,2,3,4,5], icon: "🌙", desc: "Yeşil enerji saatleri" },
+                      { label: "Sabah", range: "06:00 – 11:00", hours: [6,7,8,9,10,11], icon: "🌅", desc: "Erken saatler" },
+                      { label: "Öğlen", range: "12:00 – 17:00", hours: [12,13,14,15,16,17], icon: "☀️", desc: "Yoğun saatler" },
+                      { label: "Akşam", range: "18:00 – 22:00", hours: [18,19,20,21,22], icon: "🌆", desc: "Akşam saatleri" },
+                      { label: "Gece Geç", range: "23:00", hours: [23], icon: "🌙", desc: "Yeşil enerji başlangıcı" },
+                    ].map((group) => {
+                      const groupSlots = slots
+                        .filter(s => group.hours.includes(s.hour))
+                        .filter(s => filterMode === "ALL" || s.isGreen);
+                      if (groupSlots.length === 0) return null;
+                      const avgLoad = Math.round(groupSlots.reduce((sum, s) => sum + s.load, 0) / groupSlots.length);
+                      const hasGreen = groupSlots.some(s => s.isGreen);
                       return (
-                        <button
-                          key={slot.hour}
-                          disabled={isBooking}
-                          onClick={() => handleBooking(slot)}
-                          className={`group relative flex flex-col justify-between rounded-xl border p-3 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
-                            slot.isGreen
-                              ? "border-green-500/40 bg-gradient-to-b from-green-500/20 to-green-900/30 hover:border-green-400 hover:shadow-[0_0_20px_-5px_rgba(34,197,94,0.4)]"
-                              : "border-white/5 bg-surface-1/50 hover:border-white/20 hover:bg-surface-2"
-                          } ${filterMode === "ECO" && !slot.isGreen ? "opacity-50 grayscale" : ""}`}
-                        >
-                          {slot.isGreen && (
-                            <div className="absolute -right-1 -top-1 h-3 w-3 animate-pulse rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
-                          )}
-                          
-                          <div className="mb-2 flex items-center justify-between">
-                            <span className={`text-sm font-bold ${slot.isGreen ? "text-green-100" : "text-white"}`}>
-                              {slot.label.split(" - ")[0]}
-                            </span>
-                            <span className={`text-[10px] font-medium ${
-                              slot.load < 40 ? "text-green-400" : slot.load < 70 ? "text-yellow-400" : "text-red-400"
-                            }`}>
-                              %{slot.load}
-                            </span>
-                          </div>
-
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-text-tertiary">Fiyat</span>
-                              <span className="font-medium text-text-secondary">{slot.price} ₺</span>
+                        <div key={group.label}>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-base">{group.icon}</span>
+                              <div>
+                                <h4 className="text-sm font-bold text-white">{group.label} <span className="text-text-tertiary font-normal">({group.range})</span></h4>
+                                <p className="text-[10px] text-text-tertiary">{group.desc}</p>
+                              </div>
                             </div>
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-text-tertiary">Kazanç</span>
-                              <span className={`font-bold ${slot.isGreen ? "text-yellow-400" : "text-text-tertiary"}`}>
-                                +{slot.coins}
+                            <div className="flex items-center gap-2">
+                              {hasGreen && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] text-green-400 border border-green-500/20">
+                                  <Leaf className="h-2.5 w-2.5" /> Eco
+                                </span>
+                              )}
+                              <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                                avgLoad < 40 ? "bg-green-500/10 text-green-400" : avgLoad < 70 ? "bg-yellow-500/10 text-yellow-400" : "bg-red-500/10 text-red-400"
+                              }`}>
+                                ort. %{avgLoad}
                               </span>
                             </div>
                           </div>
-                        </button>
+                          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+                            {groupSlots.map((slot) => (
+                              <button
+                                key={slot.hour}
+                                disabled={isBooking}
+                                onClick={() => handleBooking(slot)}
+                                className={`group relative flex flex-col justify-between rounded-xl border p-3 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
+                                  slot.isGreen
+                                    ? "border-green-500/40 bg-gradient-to-b from-green-500/20 to-green-900/30 hover:border-green-400 hover:shadow-[0_0_20px_-5px_rgba(34,197,94,0.4)]"
+                                    : "border-white/5 bg-surface-1/50 hover:border-white/20 hover:bg-surface-2"
+                                } ${filterMode === "ECO" && !slot.isGreen ? "opacity-50 grayscale" : ""}`}
+                              >
+                                {slot.isGreen && (
+                                  <div className="absolute -right-1 -top-1 h-3 w-3 animate-pulse rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+                                )}
+                                
+                                <div className="mb-2 flex items-center justify-between">
+                                  <span className={`text-sm font-bold ${slot.isGreen ? "text-green-100" : "text-white"}`}>
+                                    {slot.label.split(" - ")[0]}
+                                  </span>
+                                  <span className={`text-[10px] font-medium ${
+                                    slot.load < 40 ? "text-green-400" : slot.load < 70 ? "text-yellow-400" : "text-red-400"
+                                  }`}>
+                                    %{slot.load}
+                                  </span>
+                                </div>
+
+                                <div className="space-y-1">
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-text-tertiary">Fiyat</span>
+                                    <span className="font-medium text-text-secondary">{slot.price} ₺</span>
+                                  </div>
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-text-tertiary">Kazanç</span>
+                                    <span className={`font-bold ${slot.isGreen ? "text-yellow-400" : "text-text-tertiary"}`}>
+                                      +{slot.coins}
+                                    </span>
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
@@ -393,94 +467,192 @@ function DriverDashboard() {
                     <span className="text-sm font-bold tracking-wide uppercase">AI Smart Pick</span>
                   </div>
                   
-                  {(selectedStation.mockLoad || 0) >= 70 ? (
-                    // High Density Warning
+                  {isLoadingRecs ? (
+                    <div className="flex flex-col items-center justify-center gap-3 py-6 text-slate-400">
+                      <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
+                      <p className="text-xs">AI analiz yapiliyor...</p>
+                    </div>
+                  ) : (selectedStation.load || 0) >= 70 ? (
+                    // High Density Warning + AI Alternative
                     <div className="animate-in fade-in duration-300">
                       <div className="mb-4 flex items-start gap-3 text-orange-200 bg-orange-500/10 p-3 rounded-xl border border-orange-500/20">
                         <Megaphone className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
                         <div>
-                          <p className="text-sm font-bold text-orange-400">Bu istasyon şu an çok yoğun.</p>
-                          <p className="text-xs mt-1 opacity-80">Bekleme süresi normalden uzun olabilir.</p>
+                          <p className="text-sm font-bold text-orange-400">Bu istasyon su an cok yogun.</p>
+                          <p className="text-xs mt-1 opacity-80">Bekleme suresi normalden uzun olabilir.</p>
                         </div>
                       </div>
                       
-                      {recommendation ? (
+                      {aiRecommendation ? (
                         <>
                           <p className="text-xs text-slate-400 leading-relaxed mb-3">
-                            Yüksek yoğunluk (%{selectedStation.mockLoad}) nedeniyle size daha müsait olan şu istasyonu öneriyoruz:
+                            AI skoruna gore size daha uygun olan istasyon:
                           </p>
                           <div
                             onClick={() => {
-                              handleStationSelect(recommendation);
-                              // Force open the modal for the new station so the user sees details immediately
+                              handleStationSelect(aiRecommendation.station);
                               setTimeout(() => setIsDetailsOpen(true), 50);
                             }}
                             className="group relative cursor-pointer overflow-hidden rounded-xl border border-slate-600 bg-slate-800/80 p-3 transition-all hover:border-green-500/50 hover:bg-slate-800 hover:shadow-lg hover:shadow-green-900/20"
                           >
-                            {/* Hover Gradient Effect */}
                             <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                             
                             <div className="relative flex items-center gap-3">
-                              {/* Icon Box */}
                               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-700 text-green-400 ring-1 ring-white/10 transition-colors group-hover:bg-green-500 group-hover:text-white">
                                 <MapPin className="h-5 w-5" />
                               </div>
 
-                              {/* Content */}
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-start justify-between gap-2">
                                   <h4 className="font-bold text-slate-200 group-hover:text-white text-sm leading-tight line-clamp-2">
-                                    {recommendation.name}
+                                    {aiRecommendation.station.name}
                                   </h4>
-                                  <span className="shrink-0 inline-flex items-center justify-center rounded-full bg-green-500/20 px-2 py-1 text-[10px] font-bold text-green-400 ring-1 ring-green-500/40">
-                                    %{recommendation.mockLoad}
+                                  <span className="shrink-0 inline-flex items-center justify-center rounded-full bg-purple-500/20 px-2 py-1 text-[10px] font-bold text-purple-300 ring-1 ring-purple-500/40">
+                                    {Math.round(aiRecommendation.scored.score)}
                                   </span>
                                 </div>
                                 
-                                <div className="mt-1.5 flex items-center gap-3">
-                                  <div className="flex items-center gap-1 text-[10px] text-slate-400">
-                                    <Zap className="h-3 w-3 text-yellow-400" />
-                                    <span>Hızlı Şarj</span>
-                                  </div>
-                                  <div className="h-0.5 w-0.5 rounded-full bg-slate-600" />
-                                  <div className="flex items-center gap-1 text-[10px] text-slate-400">
-                                    <Navigation className="h-3 w-3 text-blue-400" />
-                                    <span>Alternatif</span>
-                                  </div>
-                                </div>
+                                <p className="mt-1 text-[10px] text-slate-400 line-clamp-1">
+                                  {aiRecommendation.scored.explanation}
+                                </p>
                               </div>
                               
-                              {/* Arrow Icon */}
                               <div className="self-center text-slate-600 transition-transform group-hover:translate-x-1 group-hover:text-green-400">
                                 <ArrowRight className="h-4 w-4" />
                               </div>
                             </div>
                           </div>
+
+                          {/* Score breakdown for recommended station */}
+                          {aiRecommendation.scored.components && (
+                            <div className="mt-3 space-y-1.5">
+                              {Object.entries(aiRecommendation.scored.components).filter(([key]) => ["load","green","distance","price"].includes(key)).map(([key, val]) => (
+                                <div key={key} className="flex items-center gap-2">
+                                  <span className="text-[10px] text-slate-500 w-14 shrink-0 capitalize">{key === "load" ? "Yuk" : key === "green" ? "Yesil" : key === "distance" ? "Mesafe" : key === "price" ? "Fiyat" : key}</span>
+                                  <div className="flex-1 h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                                    <div className="h-full rounded-full bg-purple-500/60" style={{ width: `${Math.min(100, Math.max(0, (val ?? 0)))}%` }} />
+                                  </div>
+                                  <span className="text-[10px] text-slate-400 w-6 text-right">{Math.round(val ?? 0)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </>
                       ) : (
-                        <p className="text-xs text-slate-400">Şu an için daha iyi bir alternatif bulunamadı.</p>
+                        <p className="text-xs text-slate-400">Su an icin daha iyi bir alternatif bulunamadi.</p>
                       )}
                     </div>
-                  ) : slots.find(s => s.isGreen) ? (
-                    // Normal AI Recommendation
-                    <>
-                      <p className="mb-4 text-sm leading-relaxed text-slate-300">
-                        Şu an bölgede yoğunluk <span className="text-white font-medium">düşük (%{selectedStation.mockLoad || 24})</span>. 
-                        <br/><br/>
-                        Saat <span className="text-green-400 font-bold">{slots.find(s => s.isGreen)?.label.split(" - ")[0]}</span> için Eco Slot rezervasyonu yaparsan <span className="text-yellow-400 font-bold">{slots.find(s => s.isGreen)?.coins} Coin</span> kazanabilirsin.
+                  ) : currentStationScore ? (
+                    // Station is in AI recommendations -- show its score + best green slot
+                    <div className="animate-in fade-in duration-300">
+                      <div className="mb-3 flex items-center justify-between">
+                        <span className="text-xs text-slate-400">AI Skoru</span>
+                        <span className="text-lg font-bold text-purple-300">{Math.round(currentStationScore.score)}<span className="text-xs text-slate-500">/100</span></span>
+                      </div>
+
+                      <p className="mb-3 text-xs text-slate-400 leading-relaxed">
+                        {currentStationScore.explanation}
                       </p>
-                      <button 
+
+                      {/* Score component breakdown */}
+                      {currentStationScore.components && (
+                        <div className="mb-4 space-y-1.5">
+                          {Object.entries(currentStationScore.components).filter(([key]) => ["load","green","distance","price"].includes(key)).map(([key, val]) => (
+                            <div key={key} className="flex items-center gap-2">
+                              <span className="text-[10px] text-slate-500 w-14 shrink-0 capitalize">{key === "load" ? "Yuk" : key === "green" ? "Yesil" : key === "distance" ? "Mesafe" : key === "price" ? "Fiyat" : key}</span>
+                              <div className="flex-1 h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                                <div className="h-full rounded-full bg-purple-500/60" style={{ width: `${Math.min(100, Math.max(0, val))}%` }} />
+                              </div>
+                              <span className="text-[10px] text-slate-400 w-6 text-right">{Math.round(val)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {slots.find(s => s.isGreen) ? (
+                        <>
+                          <p className="mb-3 text-xs text-slate-300 leading-relaxed">
+                            Saat <span className="text-green-400 font-bold">{slots.find(s => s.isGreen)?.label.split(" - ")[0]}</span> icin Eco Slot rezervasyonu yaparsan <span className="text-yellow-400 font-bold">{slots.find(s => s.isGreen)?.coins} Coin</span> kazanabilirsin.
+                          </p>
+                          <button 
+                            onClick={() => {
+                              const s = slots.find(s => s.isGreen);
+                              if(s) handleBooking(s);
+                            }}
+                            className="w-full rounded-xl bg-purple-600 py-3 text-sm font-bold text-white transition hover:bg-purple-500 shadow-lg shadow-purple-600/20 active:scale-95"
+                          >
+                            Bu Saati Rezerve Et
+                          </button>
+                        </>
+                      ) : null}
+
+                      {/* Better alternative suggestion */}
+                      {aiRecommendation && aiRecommendation.scored.score > currentStationScore.score + 5 && (
+                        <div className="mt-4 pt-4 border-t border-slate-700/50">
+                          <p className="text-[10px] text-slate-500 mb-2 uppercase tracking-wide">Daha iyi alternatif</p>
+                          <div
+                            onClick={() => {
+                              handleStationSelect(aiRecommendation.station);
+                              setTimeout(() => setIsDetailsOpen(true), 50);
+                            }}
+                            className="group flex items-center gap-2 cursor-pointer rounded-lg border border-slate-700 bg-slate-800/60 p-2.5 transition-all hover:border-purple-500/40 hover:bg-slate-800"
+                          >
+                            <MapPin className="h-4 w-4 text-purple-400 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-slate-200 truncate">{aiRecommendation.station.name}</p>
+                              <p className="text-[10px] text-slate-500">Skor: {Math.round(aiRecommendation.scored.score)}</p>
+                            </div>
+                            <ArrowRight className="h-3 w-3 text-slate-600 group-hover:text-purple-400 transition-transform group-hover:translate-x-0.5" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : aiRecommendation ? (
+                    // Selected station not in top results -- suggest the best one
+                    <div className="animate-in fade-in duration-300">
+                      <p className="mb-3 text-xs text-slate-400 leading-relaxed">
+                        AI analizine gore su an en uygun istasyon:
+                      </p>
+                      <div
                         onClick={() => {
-                          const s = slots.find(s => s.isGreen);
-                          if(s) handleBooking(s);
+                          handleStationSelect(aiRecommendation.station);
+                          setTimeout(() => setIsDetailsOpen(true), 50);
                         }}
-                        className="w-full rounded-xl bg-purple-600 py-3 text-sm font-bold text-white transition hover:bg-purple-500 shadow-lg shadow-purple-600/20 active:scale-95"
+                        className="group relative cursor-pointer overflow-hidden rounded-xl border border-slate-600 bg-slate-800/80 p-3 transition-all hover:border-purple-500/50 hover:bg-slate-800 hover:shadow-lg hover:shadow-purple-900/20"
                       >
-                        Bu Saati Rezerve Et
-                      </button>
-                    </>
+                        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+                        
+                        <div className="relative flex items-center gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-700 text-purple-400 ring-1 ring-white/10 transition-colors group-hover:bg-purple-500 group-hover:text-white">
+                            <MapPin className="h-5 w-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-slate-200 group-hover:text-white text-sm truncate">{aiRecommendation.station.name}</h4>
+                            <p className="mt-0.5 text-[10px] text-slate-400 line-clamp-1">{aiRecommendation.scored.explanation}</p>
+                          </div>
+                          <div className="self-center text-slate-600 transition-transform group-hover:translate-x-1 group-hover:text-purple-400">
+                            <ArrowRight className="h-4 w-4" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Score breakdown */}
+                      {aiRecommendation.scored.components && (
+                        <div className="mt-3 space-y-1.5">
+                          {Object.entries(aiRecommendation.scored.components).filter(([key]) => ["load","green","distance","price"].includes(key)).map(([key, val]) => (
+                            <div key={key} className="flex items-center gap-2">
+                              <span className="text-[10px] text-slate-500 w-14 shrink-0 capitalize">{key === "load" ? "Yuk" : key === "green" ? "Yesil" : key === "distance" ? "Mesafe" : key === "price" ? "Fiyat" : key}</span>
+                              <div className="flex-1 h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                                <div className="h-full rounded-full bg-purple-500/60" style={{ width: `${Math.min(100, Math.max(0, (val ?? 0)))}%` }} />
+                              </div>
+                              <span className="text-[10px] text-slate-400 w-6 text-right">{Math.round(val ?? 0)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   ) : (
-                    <p className="text-sm text-slate-400">Şu an için özel bir öneri bulunmuyor.</p>
+                    <p className="text-sm text-slate-400">Su an icin ozel bir oneri bulunmuyor.</p>
                   )}
                 </div>
 

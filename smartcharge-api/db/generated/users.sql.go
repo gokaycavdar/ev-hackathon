@@ -12,8 +12,8 @@ import (
 )
 
 const addUserBadge = `-- name: AddUserBadge :exec
-INSERT INTO user_badges (user_id, badge_id)
-VALUES ($1, $2)
+INSERT INTO user_badges (user_id, badge_id, earned_at)
+VALUES ($1, $2, NOW())
 ON CONFLICT DO NOTHING
 `
 
@@ -198,6 +198,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 
 const getUserReservations = `-- name: GetUserReservations :many
 SELECT r.id, r.date, r.hour, r.is_green, r.earned_coins, r.status,
+       r.confirmed_at, r.started_at, r.completed_at,
        s.id AS station_id, s.name AS station_name, s.price AS station_price
 FROM reservations r
 JOIN stations s ON s.id = r.station_id
@@ -218,6 +219,9 @@ type GetUserReservationsRow struct {
 	IsGreen      bool               `json:"is_green"`
 	EarnedCoins  int32              `json:"earned_coins"`
 	Status       string             `json:"status"`
+	ConfirmedAt  pgtype.Timestamptz `json:"confirmed_at"`
+	StartedAt    pgtype.Timestamptz `json:"started_at"`
+	CompletedAt  pgtype.Timestamptz `json:"completed_at"`
 	StationID    int32              `json:"station_id"`
 	StationName  string             `json:"station_name"`
 	StationPrice float64            `json:"station_price"`
@@ -239,6 +243,9 @@ func (q *Queries) GetUserReservations(ctx context.Context, arg GetUserReservatio
 			&i.IsGreen,
 			&i.EarnedCoins,
 			&i.Status,
+			&i.ConfirmedAt,
+			&i.StartedAt,
+			&i.CompletedAt,
 			&i.StationID,
 			&i.StationName,
 			&i.StationPrice,

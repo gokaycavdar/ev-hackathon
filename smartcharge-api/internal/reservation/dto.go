@@ -1,5 +1,7 @@
 package reservation
 
+import "smartcharge-api/internal/badge"
+
 // --- Request DTOs ---
 
 // CreateReservationRequest is the request body for POST /v1/reservations.
@@ -28,12 +30,16 @@ type ReservationResponse struct {
 	EarnedCoins int32   `json:"earnedCoins"`
 	SavedCo2    float64 `json:"savedCo2"`
 	Status      string  `json:"status"`
+	ConfirmedAt *string `json:"confirmedAt,omitempty"`
+	StartedAt   *string `json:"startedAt,omitempty"`
+	CompletedAt *string `json:"completedAt,omitempty"`
 }
 
 // CompleteResponse is the response for the complete endpoint.
 type CompleteResponse struct {
-	Reservation ReservationResponse `json:"reservation"`
-	User        UserStatsResponse   `json:"user"`
+	Reservation   ReservationResponse  `json:"reservation"`
+	User          UserStatsResponse    `json:"user"`
+	AwardedBadges []badge.AwardedBadge `json:"awardedBadges"`
 }
 
 // UserStatsResponse is the user stats snapshot returned after completing a reservation.

@@ -1,15 +1,28 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Award, Coins, Leaf, Loader2, Sparkles, Trophy, Users, Zap } from "lucide-react";
+import { ArrowLeft, Award, Coins, Leaf, Loader2, MapPin, Sparkles, Trophy, Users, Zap } from "lucide-react";
 import Link from "next/link";
 import { authFetch, unwrapResponse, getStoredUserId } from "@/lib/auth";
+import { useGeolocation } from "@/lib/useGeolocation";
 
 type Badge = {
 	id: number;
 	name: string;
 	description: string;
 	icon: string;
+};
+
+type BadgeProgress = {
+	id: number;
+	name: string;
+	description: string;
+	icon: string;
+	metric: string;
+	threshold: number;
+	currentCount: number;
+	earned: boolean;
+	earnedAt: string | null;
 };
 
 type Reservation = {
@@ -64,6 +77,9 @@ export default function DriverWalletPage() {
 	const [recommendations, setRecommendations] = useState<ScoredStation[]>([]);
 	const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
 	const [recommendationStations, setRecommendationStations] = useState<Record<number, { name: string; lat: number; lng: number; price: number; address?: string }>>({});
+	const [badgeProgress, setBadgeProgress] = useState<BadgeProgress[]>([]);
+	const [isLoadingBadges, setIsLoadingBadges] = useState(false);
+	const geo = useGeolocation();
 
 	useEffect(() => {
 		const userId = getStoredUserId();
@@ -113,6 +129,27 @@ export default function DriverWalletPage() {
 		return () => controller.abort();
 	}, [activeTab, leaderboard.length]);
 
+	// Fetch badge progress when tab switches to badges
+	useEffect(() => {
+		if (activeTab !== "badges" || badgeProgress.length > 0) return;
+		const controller = new AbortController();
+		const loadBadges = async () => {
+			setIsLoadingBadges(true);
+			try {
+				const response = await authFetch("/api/badges/progress", { signal: controller.signal });
+				const data = await unwrapResponse<BadgeProgress[]>(response);
+				setBadgeProgress(data);
+			} catch (err) {
+				if (err instanceof DOMException && err.name === "AbortError") return;
+				console.error("Badge progress fetch failed", err);
+			} finally {
+				setIsLoadingBadges(false);
+			}
+		};
+		loadBadges();
+		return () => controller.abort();
+	}, [activeTab, badgeProgress.length]);
+
 	// Fetch recommendations when tab switches to recommendations
 	useEffect(() => {
 		if (activeTab !== "recommendations") return;
@@ -132,7 +169,7 @@ export default function DriverWalletPage() {
 				setRecommendationStations(stationMap);
 				
 				// Then fetch recommendations
-				const response = await authFetch("/api/stations/recommend?limit=10", { signal: controller.signal });
+				const response = await authFetch(`/api/stations/recommend?limit=10${geo.lat != null && geo.lng != null ? `&lat=${geo.lat}&lng=${geo.lng}` : ""}`, { signal: controller.signal });
 				const data = await unwrapResponse<{ algorithm: string; results: ScoredStation[] }>(response);
 				console.log("Recommendations response:", data);
 				setRecommendations(data.results || []);
@@ -274,7 +311,7 @@ export default function DriverWalletPage() {
 												<Award className="h-5 w-5 text-accent-primary" />
 											</div>
 											<p className="mt-4 text-5xl font-bold text-white tracking-tight">{user.xp.toLocaleString()}</p>
-											<p className="mt-2 text-xs text-text-secondary">Sonraki seviyeye 450 XP kaldı.</p>
+											<p className="mt-2 text-xs text-text-secondary">Sonraki seviyeye {((Math.floor(user.xp / 500) + 1) * 500) - user.xp} XP kaldı.</p>
 										</div>
 									</div>
 
@@ -325,38 +362,90 @@ export default function DriverWalletPage() {
 							{/* BADGES TAB */}
 							{activeTab === "badges" && (
 								<div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-									{user.badges.length === 0 ? (
+									{isLoadingBadges ? (
+										<div className="col-span-full flex flex-col items-center justify-center gap-3 py-24 text-text-tertiary">
+											<Loader2 className="h-8 w-8 animate-spin text-accent-primary" />
+											<p>Rozetler yükleniyor...</p>
+										</div>
+									) : badgeProgress.length === 0 ? (
 										<div className="col-span-full flex flex-col items-center justify-center py-24 text-text-tertiary">
 											<Award className="h-16 w-16 opacity-20 mb-4" />
-											<p>Henüz rozet kazanmadın. Görevleri tamamla!</p>
+											<p>Rozet bilgisi bulunamadı.</p>
 										</div>
 									) : (
-										user.badges.map((badge) => (
-											<div
-												key={badge.id}
-												className="group relative flex flex-col items-center gap-4 rounded-3xl border border-white/10 bg-surface-1 p-8 text-center transition hover:border-accent-primary/30 hover:bg-surface-2"
-											>
-												<div className="absolute inset-0 bg-gradient-to-br from-accent-primary/5 to-purple-500/5 opacity-0 transition group-hover:opacity-100 rounded-3xl" />
-												<span className="text-6xl drop-shadow-2xl filter transition group-hover:scale-110 duration-300">{badge.icon}</span>
-												<div className="relative">
-													<h3 className="text-lg font-bold text-white">{badge.name}</h3>
-													<p className="mt-2 text-sm text-text-secondary leading-relaxed">{badge.description}</p>
+										badgeProgress.map((bp) => {
+											const progressPercent = bp.threshold > 0 ? Math.min(100, Math.round((bp.currentCount / bp.threshold) * 100)) : 0;
+											const criteriaLabels: Record<string, string> = {
+												night_charges: "Gece saatlerinde (23:00-06:00) sarj",
+												green_charges: "Yesil enerji slotlarinda sarj",
+												weekend_charges: "Hafta sonu sarj",
+												morning_charges: "Sabah saatlerinde (06:00-09:00) sarj",
+												intercity_charges: "Sehirlerarasi istasyonlarda sarj",
+											};
+											const criteriaText = criteriaLabels[bp.metric] || bp.description;
+											return (
+												<div
+													key={`${bp.id}-${bp.metric}`}
+													className={`group relative flex flex-col items-center gap-4 rounded-3xl border p-8 text-center transition ${
+														bp.earned
+															? "border-accent-primary/30 bg-surface-1 hover:border-accent-primary/50 hover:bg-surface-2"
+															: "border-dashed border-white/10 bg-surface-1/30"
+													}`}
+												>
+													{bp.earned && (
+														<div className="absolute inset-0 bg-gradient-to-br from-accent-primary/5 to-purple-500/5 opacity-0 transition group-hover:opacity-100 rounded-3xl" />
+													)}
+													<span className={`text-6xl drop-shadow-2xl filter transition duration-300 ${
+														bp.earned ? "group-hover:scale-110" : "grayscale opacity-50"
+													}`}>
+														{bp.icon}
+													</span>
+													<div className="relative w-full">
+														<h3 className={`text-lg font-bold ${bp.earned ? "text-white" : "text-text-secondary"}`}>
+															{bp.name}
+														</h3>
+														<p className="mt-2 text-sm text-text-secondary leading-relaxed">{bp.description}</p>
+														
+														{/* Criteria / condition */}
+														<div className="mt-3 rounded-xl bg-surface-2/60 px-4 py-2.5">
+															<p className="text-xs font-medium text-text-tertiary">
+																Kosul: <span className="text-text-secondary">{bp.threshold}x {criteriaText}</span>
+															</p>
+														</div>
+
+														{/* Progress bar - always shown */}
+														<div className="mt-3">
+															<div className="h-2 w-full overflow-hidden rounded-full bg-surface-2">
+																<div
+																	className={`h-full rounded-full transition-all duration-500 ${
+																		bp.earned ? "bg-green-500" : "bg-accent-primary/60"
+																	}`}
+																	style={{ width: `${bp.earned ? 100 : progressPercent}%` }}
+																/>
+															</div>
+															<div className="mt-1.5 flex items-center justify-between">
+																<p className={`text-xs font-medium ${bp.earned ? "text-green-400" : "text-text-tertiary"}`}>
+																	{bp.earned ? `${bp.threshold}/${bp.threshold}` : `${bp.currentCount}/${bp.threshold}`} tamamlandi
+																</p>
+																{bp.earned ? (
+																	<span className="inline-flex items-center gap-1 text-xs font-medium text-green-400">
+																		Kazanildi
+																		{bp.earnedAt && (
+																			<span className="text-green-500/60">
+																				({new Date(bp.earnedAt).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })})
+																			</span>
+																		)}
+																	</span>
+																) : (
+																	<span className="text-xs text-text-tertiary">%{progressPercent}</span>
+																)}
+															</div>
+														</div>
+													</div>
 												</div>
-											</div>
-										))
+											);
+										})
 									)}
-									{/* Locked Badge Example */}
-									<div className="flex flex-col items-center gap-4 rounded-3xl border border-dashed border-white/10 bg-surface-1/30 p-8 text-center opacity-60 grayscale">
-										<span className="text-6xl">⚡</span>
-										<div>
-											<h3 className="text-lg font-bold text-text-secondary">Hızlı Şarj Ustası</h3>
-											<p className="mt-2 text-sm text-text-tertiary">5 kez hızlı şarj istasyonu kullan.</p>
-											<div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
-												<div className="h-full w-1/3 bg-surface-3" />
-											</div>
-											<p className="mt-1 text-[10px] text-text-tertiary">1/5 Tamamlandı</p>
-										</div>
-									</div>
 								</div>
 							)}
 
@@ -442,7 +531,7 @@ export default function DriverWalletPage() {
 
 							{/* RECOMMENDATIONS TAB - RL SCORES */}
 							{activeTab === "recommendations" && (
-								<div className="mx-auto max-w-3xl">
+								<div className="mx-auto max-w-5xl">
 									<div className="rounded-[2rem] border border-white/10 bg-surface-1 p-8 shadow-2xl">
 										<div className="mb-8 flex items-center justify-between">
 											<h2 className="flex items-center gap-3 text-2xl font-bold text-white">
@@ -464,7 +553,7 @@ export default function DriverWalletPage() {
 												<p>Öneriler yüklenemedi.</p>
 											</div>
 										) : (
-											<div className="space-y-4">
+											<div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-purple-500/30 scrollbar-track-transparent">
 												{recommendations.map((rec, i) => {
 													const stationId = (rec.stationId ?? rec.StationID ?? 0);
 													const station = recommendationStations[stationId];
@@ -472,66 +561,67 @@ export default function DriverWalletPage() {
 													const components = rec.components ?? rec.Components ?? {};
 													const loadScore = Math.round(components.load ?? components.Load ?? 0);
 													const greenScore = Math.round(components.green ?? components.Green ?? 0);
+													const distanceScore = Math.round(components.distance ?? 0);
 													const priceScore = Math.round(components.price ?? components.Price ?? 0);
-													const rlBonus = components.rl_bonus ?? components.q_value ?? 0;
 													
 													return (
 														<div 
 															key={stationId} 
-															className="relative overflow-hidden rounded-2xl border border-purple-500/20 bg-gradient-to-r from-purple-500/5 to-transparent p-4 transition-all hover:border-purple-500/40 hover:scale-[1.01]"
+															className="snap-start shrink-0 w-72 relative overflow-hidden rounded-2xl border border-purple-500/20 bg-gradient-to-b from-purple-500/10 to-surface-2 p-5 transition-all hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10"
 														>
-															{/* Rank Badge */}
-															<div className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-purple-500 text-xs font-bold text-white shadow-lg z-10">
-																{i + 1}
-															</div>
-
-															<div className="flex items-start justify-between pr-8">
-																<div className="flex-1">
-																	<h3 className="font-bold text-white text-lg pr-8">
-																		{station?.name || `İstasyon #${stationId}`}
-																		{station?.address && <span className="block text-sm text-text-tertiary font-normal mt-1">{station.address}</span>}
-																	</h3>
-																	<p className="text-sm text-text-tertiary mt-1">
-																		{rec.explanation || rec.Explanation}
-																	</p>
-																	
-																	{/* Score Breakdown */}
-																	<div className="mt-4 flex flex-wrap gap-3">
-																		<div className="flex items-center gap-1.5 rounded-lg bg-surface-2 px-2 py-1">
-																			<Zap className="h-3 w-3 text-blue-400" />
-																			<span className="text-xs text-text-secondary">Yoğunluk: <span className="font-medium text-white">{loadScore}</span></span>
-																		</div>
-																		<div className="flex items-center gap-1.5 rounded-lg bg-surface-2 px-2 py-1">
-																			<Leaf className="h-3 w-3 text-green-400" />
-																			<span className="text-xs text-text-secondary">Yeşil: <span className="font-medium text-white">{greenScore}</span></span>
-																		</div>
-																		<div className="flex items-center gap-1.5 rounded-lg bg-surface-2 px-2 py-1">
-																			<Coins className="h-3 w-3 text-yellow-400" />
-																			<span className="text-xs text-text-secondary">Fiyat: <span className="font-medium text-white">{priceScore}</span></span>
-																		</div>
-																		{rlBonus > 0 && (
-																			<div className="flex items-center gap-1.5 rounded-lg bg-purple-500/20 px-2 py-1 ring-1 ring-purple-500/40">
-																				<Sparkles className="h-3 w-3 text-purple-400" />
-																				<span className="text-xs text-purple-300">RL Bonus: <span className="font-medium">+{Math.round(rlBonus)}</span></span>
-																			</div>
-																		)}
-																	</div>
+															{/* Rank + Score header */}
+															<div className="flex items-center justify-between mb-4">
+																<div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-500 text-xs font-bold text-white shadow-lg">
+																	{i + 1}
 																</div>
-
-																{/* Total Score */}
-																<div className="ml-4 flex flex-col items-center">
-																	<div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-blue-500 shadow-lg shadow-purple-500/30">
-																		<span className="text-xl font-bold text-white">{scorePercent}</span>
+																<div className="flex items-center gap-2">
+																	<div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-blue-500 shadow-lg shadow-purple-500/30">
+																		<span className="text-lg font-bold text-white">{scorePercent}</span>
 																	</div>
-																	<span className="mt-1 text-[10px] text-purple-400 font-medium">PUAN</span>
 																</div>
 															</div>
 
-															{/* Station Info */}
+															{/* Station name */}
+															<h3 className="font-bold text-white text-base leading-tight mb-1 line-clamp-2">
+																{station?.name || `İstasyon #${stationId}`}
+															</h3>
+															{station?.address && (
+																<p className="text-xs text-text-tertiary mb-3 line-clamp-1">{station.address}</p>
+															)}
+															
+															<p className="text-xs text-text-tertiary mb-4 line-clamp-2">
+																{rec.explanation || rec.Explanation}
+															</p>
+
+															{/* Score bars */}
+															<div className="space-y-2 mb-4">
+																{[
+																	{ label: "Yoğunluk", value: loadScore, color: "bg-blue-500", icon: <Zap className="h-3 w-3 text-blue-400" /> },
+																	{ label: "Yeşil", value: greenScore, color: "bg-green-500", icon: <Leaf className="h-3 w-3 text-green-400" /> },
+																	{ label: "Mesafe", value: distanceScore, color: "bg-cyan-500", icon: <MapPin className="h-3 w-3 text-cyan-400" /> },
+																	{ label: "Fiyat", value: priceScore, color: "bg-yellow-500", icon: <Coins className="h-3 w-3 text-yellow-400" /> },
+																].map(({ label, value, color, icon }) => (
+																	<div key={label} className="flex items-center gap-2">
+																		{icon}
+																		<span className="text-[10px] text-text-tertiary w-14 shrink-0">{label}</span>
+																		<div className="flex-1 h-1.5 rounded-full bg-surface-2 overflow-hidden">
+																			<div className={`h-full rounded-full ${color}/60`} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
+																		</div>
+																		<span className="text-[10px] text-text-secondary w-6 text-right font-medium">{value}</span>
+																	</div>
+																))}
+															</div>
+
+															{/* Price */}
 															{station && (
-																<div className="mt-4 pt-3 border-t border-white/5 flex items-center gap-4 text-xs text-text-tertiary">
-																	<span>💰 {station.price?.toFixed(2) || "---"} ₺/kWh</span>
-																	{station.address && <span>📍 {station.address}</span>}
+																<div className="pt-3 border-t border-white/5 flex items-center justify-between text-xs text-text-tertiary">
+																	<span>{station.price?.toFixed(2) || "---"} ₺/kWh</span>
+																	<Link
+																		href={`/driver?stationId=${stationId}`}
+																		className="text-purple-400 hover:text-purple-300 font-medium transition-colors"
+																	>
+																		Haritada Gör →
+																	</Link>
 																</div>
 															)}
 														</div>

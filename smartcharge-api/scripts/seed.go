@@ -279,6 +279,20 @@ var badgeSeeds = []badgeSeed{
 	{"Uzun Yolcu", "Şehirlerarası istasyonlarda şarj et", "🛣️"},
 }
 
+// Badge criteria seed data (must match badgeSeeds order)
+type badgeCriteriaSeed struct {
+	metric    string
+	threshold int
+}
+
+var badgeCriteriaSeeds = []badgeCriteriaSeed{
+	{"night_charges", 5},     // Gece Kuşu
+	{"green_charges", 10},    // Eco Şampiyonu
+	{"weekend_charges", 5},   // Hafta Sonu Savaşçısı
+	{"morning_charges", 5},   // Erken Kalkan
+	{"intercity_charges", 3}, // Uzun Yolcu
+}
+
 // Campaign seed data
 type campaignSeed struct {
 	title       string
@@ -375,7 +389,21 @@ func main() {
 		badgeIDs[i] = badge.ID
 	}
 
-	// 3. Create operator user
+	// 2b. Seed badge criteria
+	fmt.Println("Seeding badge criteria...")
+	pool.Exec(ctx, "DELETE FROM badge_progress")
+	pool.Exec(ctx, "DELETE FROM badge_criteria")
+	for i, bc := range badgeCriteriaSeeds {
+		_, err := pool.Exec(ctx,
+			"INSERT INTO badge_criteria (badge_id, metric, threshold, time_window) VALUES ($1, $2, $3, 'all_time') ON CONFLICT (badge_id, metric) DO NOTHING",
+			badgeIDs[i], bc.metric, bc.threshold,
+		)
+		if err != nil {
+			log.Fatalf("Failed to seed badge criteria for badge %d: %v", badgeIDs[i], err)
+		}
+	}
+
+	// 3. Create operator users
 	fmt.Println("Creating users...")
 	defaultPassword, err := bcrypt.GenerateFromPassword([]byte("demo123"), 10)
 	if err != nil {
@@ -392,21 +420,83 @@ func main() {
 		log.Fatalf("Failed to create operator user: %v", err)
 	}
 
-	// 4. Create driver user
-	driver, err := queries.CreateUser(ctx, generated.CreateUserParams{
-		Name:     "Hackathon Sürücü",
-		Email:    "driver@test.com",
+	_, err = queries.CreateUser(ctx, generated.CreateUserParams{
+		Name:     "Eşarj A.Ş.",
+		Email:    "info@esarj.com",
 		Password: string(defaultPassword),
-		Role:     "DRIVER",
+		Role:     "OPERATOR",
 	})
 	if err != nil {
-		log.Fatalf("Failed to create driver user: %v", err)
+		log.Fatalf("Failed to create operator user Eşarj: %v", err)
 	}
 
-	// Assign 4 badges to the driver (Gece Kusu, Eco Sampiyonu, Hafta Sonu Savascisi, Erken Kalkan)
+	_, err = queries.CreateUser(ctx, generated.CreateUserParams{
+		Name:     "Sharz.net",
+		Email:    "info@sharz.net",
+		Password: string(defaultPassword),
+		Role:     "OPERATOR",
+	})
+	if err != nil {
+		log.Fatalf("Failed to create operator user Sharz.net: %v", err)
+	}
+
+	// 4. Create driver users with varied stats
+	type driverSeed struct {
+		name  string
+		email string
+		coins int32
+		co2   float64
+		xp    int32
+	}
+
+	driverSeeds := []driverSeed{
+		{"Hackathon Sürücü", "driver@test.com", 850, 42.5, 2100},
+		{"Ayşe Yılmaz", "ayse@test.com", 1200, 60.0, 3200},
+		{"Mehmet Kaya", "mehmet@test.com", 650, 32.5, 1800},
+		{"Zeynep Demir", "zeynep@test.com", 2500, 125.0, 5500},
+		{"Ali Çelik", "ali@test.com", 400, 20.0, 1200},
+		{"Fatma Öztürk", "fatma@test.com", 1800, 90.0, 4100},
+		{"Emre Arslan", "emre@test.com", 300, 15.0, 900},
+		{"Selin Koç", "selin@test.com", 950, 47.5, 2400},
+		{"Burak Şahin", "burak@test.com", 1500, 75.0, 3800},
+		{"Deniz Aydın", "deniz@test.com", 550, 27.5, 1500},
+	}
+
+	var driverID int32
+	for i, ds := range driverSeeds {
+		user, err := queries.CreateUser(ctx, generated.CreateUserParams{
+			Name:     ds.name,
+			Email:    ds.email,
+			Password: string(defaultPassword),
+			Role:     "DRIVER",
+		})
+		if err != nil {
+			log.Fatalf("Failed to create driver user %q: %v", ds.name, err)
+		}
+
+		// Set initial stats
+		if ds.coins > 0 || ds.xp > 0 {
+			_, err = queries.UpdateUserStats(ctx, generated.UpdateUserStatsParams{
+				ID:       user.ID,
+				Coins:    ds.coins,
+				Co2Saved: ds.co2,
+				Xp:       ds.xp,
+			})
+			if err != nil {
+				log.Fatalf("Failed to set stats for driver %q: %v", ds.name, err)
+			}
+		}
+
+		// First driver (Hackathon Sürücü) gets badges
+		if i == 0 {
+			driverID = user.ID
+		}
+	}
+
+	// Assign 4 badges to the first driver (Gece Kusu, Eco Sampiyonu, Hafta Sonu Savascisi, Erken Kalkan)
 	for i := 0; i < 4; i++ {
 		err := queries.AddUserBadge(ctx, generated.AddUserBadgeParams{
-			UserID:  driver.ID,
+			UserID:  driverID,
 			BadgeID: badgeIDs[i],
 		})
 		if err != nil {
@@ -414,8 +504,8 @@ func main() {
 		}
 	}
 
-	fmt.Println("  Surucu: driver@test.com / demo123")
-	fmt.Println("  Operator: info@zorlu.com / demo123")
+	fmt.Println("  Sürücüler (10 kullanıcı): driver@test.com, ayse@test.com, ... / demo123")
+	fmt.Println("  Operatörler: info@zorlu.com, info@esarj.com, info@sharz.net / demo123")
 
 	// 5. Create stations
 	fmt.Println("Creating stations...")

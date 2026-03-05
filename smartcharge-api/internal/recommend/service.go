@@ -17,10 +17,10 @@ type ScoreRequest struct {
 }
 
 type ScoredStation struct {
-	StationID   int32
-	Score       float64
-	Components  map[string]float64
-	Explanation string
+	StationID   int32              `json:"stationId"`
+	Score       float64            `json:"score"`
+	Components  map[string]float64 `json:"components"`
+	Explanation string             `json:"explanation"`
 }
 
 type Scorer interface {
@@ -44,10 +44,6 @@ func (s *Service) Recommend(ctx context.Context, req ScoreRequest) ([]ScoredStat
 	return s.scorer.Score(ctx, req)
 }
 
-func (s *Service) SetScorer(scorer Scorer) {
-	s.scorer = scorer
-}
-
 func (s *Service) GetScorerName() string {
 	return s.scorer.Name()
 }
@@ -69,4 +65,29 @@ func normalizeScore(value, min, max float64) float64 {
 	}
 	result := (value - min) / (max - min) * 100
 	return math.Min(100, math.Max(0, result))
+}
+
+func sortAndLimit(scored []ScoredStation, limit int) []ScoredStation {
+	for i := 0; i < len(scored)-1; i++ {
+		for j := i + 1; j < len(scored); j++ {
+			if scored[j].Score > scored[i].Score {
+				scored[i], scored[j] = scored[j], scored[i]
+			}
+		}
+	}
+	if limit > len(scored) {
+		limit = len(scored)
+	}
+	return scored[:limit]
+}
+
+func joinParts(parts []string) string {
+	result := ""
+	for i, p := range parts {
+		if i > 0 {
+			result += " & "
+		}
+		result += p
+	}
+	return result
 }

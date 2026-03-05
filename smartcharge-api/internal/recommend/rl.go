@@ -52,7 +52,9 @@ func (s *RLScorer) Score(ctx context.Context, req ScoreRequest) ([]ScoredStation
 		return nil, err
 	}
 
-	dayOfWeek := int(req.TimeSlot.Weekday())
+	// Go Weekday(): Sunday=0, Monday=1, ..., Saturday=6
+	// Seed script uses Monday=0, ..., Sunday=6 convention
+	dayOfWeek := (int(req.TimeSlot.Weekday()) + 6) % 7
 	hour := req.TimeSlot.Hour()
 
 	forecasts, err := s.queries.GetForecastsByDayHour(ctx, generated.GetForecastsByDayHourParams{
@@ -81,15 +83,15 @@ func (s *RLScorer) Score(ctx context.Context, req ScoreRequest) ([]ScoredStation
 		loadScore := normalizeScore(100-float64(load), 0, 100)
 
 		dist := calculateDistance(req.UserLat, req.UserLng, st.Lat, st.Lng)
-		distanceScore := normalizeScore(math.Max(0, 20-dist), 0, 20) * 2.5
+		distanceScore := normalizeScore(math.Max(0, 20-dist), 0, 20)
 
 		greenHour := hour >= 23 || hour <= 6
 		greenScore := 0.0
 		if greenHour {
-			greenScore = 25
+			greenScore = 100
 		}
 
-		priceScore := normalizeScore(15-st.Price, 0, 15) * 1.5
+		priceScore := normalizeScore(15-st.Price, 0, 15)
 
 		baseScore := loadScore*0.35 + distanceScore*0.2 + greenScore*0.25 + priceScore*0.15
 

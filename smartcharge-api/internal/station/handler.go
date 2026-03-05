@@ -135,12 +135,13 @@ func (h *Handler) GetForecasts(c *gin.Context) {
 }
 
 // GetRecommendations handles GET /v1/stations/recommend.
-// Query params: lat, lng, hour, day, limit, algorithm (linear|rl)
+// Query params: lat, lng, hour, day, limit
 func (h *Handler) GetRecommendations(c *gin.Context) {
 	now := time.Now()
 
-	var lat, lng float64 = 38.619, 27.429 // Default: Manisa city center
+	var lat, lng float64 = 38.614, 27.405 // Default: station cluster center (Manisa/Izmir area)
 	hour := now.Hour()
+	dayOfWeek := int((int(now.Weekday()) + 6) % 7) // 0=Monday, 6=Sunday
 	limit := 10
 
 	if l := c.Query("lat"); l != "" {
@@ -161,6 +162,12 @@ func (h *Handler) GetRecommendations(c *gin.Context) {
 			hour = val
 		}
 	}
+	if d := c.Query("day"); d != "" {
+		val, err := strconv.Atoi(d)
+		if err == nil && val >= 0 && val <= 6 {
+			dayOfWeek = val
+		}
+	}
 	if l := c.Query("limit"); l != "" {
 		val, err := strconv.Atoi(l)
 		if err == nil && val > 0 && val <= 50 {
@@ -168,8 +175,12 @@ func (h *Handler) GetRecommendations(c *gin.Context) {
 		}
 	}
 
-	timeSlot := time.Date(2026, 2, 25, hour, 0, 0, 0, time.UTC)
-	timeSlot = time.Date(timeSlot.Year(), timeSlot.Month(), timeSlot.Day(), hour, 0, 0, 0, time.UTC)
+	// Build a time.Time for the requested day+hour based on current week
+	// Find the date for the requested dayOfWeek (0=Monday)
+	currentDay := (int(now.Weekday()) + 6) % 7 // convert Go weekday to 0=Monday
+	dayDiff := dayOfWeek - currentDay
+	targetDate := now.AddDate(0, 0, dayDiff)
+	timeSlot := time.Date(targetDate.Year(), targetDate.Month(), targetDate.Day(), hour, 0, 0, 0, time.UTC)
 
 	var userID int32
 	if uID, ok := middleware.GetUserID(c); ok {

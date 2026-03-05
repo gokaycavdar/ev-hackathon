@@ -84,11 +84,24 @@ This project has a detailed improvement plan in the `.plan/` directory:
 
 **Before starting any implementation task, read the relevant `.plan/` file to understand the current state and planned approach.**
 
+## Autonomous Execution Mode
+
+**Work through Phase 5 without asking for user confirmation.** Do not ask questions or wait for approval -- just implement each phase and move to the next. The user will say "devam et" (continue) at each turn to keep you going.
+
+Execution order: Phase 2 -> Phase 3 -> Phase 4 -> Phase 5. After each phase:
+1. Verify builds pass (`go build ./...` in `smartcharge-api/`, `npx next build` in root)
+2. Update `.plan/` files immediately (ROADMAP checkboxes, AUDIT.md fixes, CHANGELOG.md)
+3. Continue to next phase without stopping
+
+**Phases 1-6 are COMPLETE.** Phase 7 (Chatbot/RAG) is [EXT]-owned. Phase 8 (Testing) is next.
+
 ## Current Priority: Functional Completeness
 
 The primary goal right now is making the mock/stub systems actually work:
 
-1. **Badges are static** - Seeded in DB, no earning logic. Needs event-driven `BadgeEvaluator`. (See ROADMAP Phase 2)
-2. **Chat is a stub** - User messages ignored, returns hardcoded response. Needs LLM integration. (See ROADMAP Phase 3)
-3. **Recommendations are mocked** - `MockLoad`/`MockStatus` fields, hardcoded `NextGreenHour`. Needs real scoring engine. (See ROADMAP Phase 1)
-4. **Mobile app coming** - A Flutter app will consume the same Go API directly (driver side only). Endpoints must be mobile-ready. (See `.plan/MOBILE_API.md`)
+1. **Badges are static** - Seeded in DB, no earning logic. Needs event-driven `BadgeEvaluator`. (See ROADMAP Phase 5)
+2. **Chat has LLM integration (Ollama)** - But has critical auth bug and missing features. (See ROADMAP Phase 7, [EXT] owner)
+3. **Recommendations engine exists** - But has bugs: hardcoded date, wrong default coords, no geolocation, dead code. (See ROADMAP Phase 2)
+4. **MockLoad/MockStatus field names** - Need renaming + coin formula inconsistencies. (See ROADMAP Phase 3)
+5. **Driver page AI Smart Pick is fake** - Does JS sort, not real AI. (See ROADMAP Phase 4)
+6. **Mobile app coming** - A Flutter app will consume the same Go API directly (driver side only). Endpoints must be mobile-ready. (See `.plan/MOBILE_API.md`)

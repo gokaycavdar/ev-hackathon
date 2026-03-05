@@ -35,8 +35,8 @@ WHERE ub.user_id = $1
 ORDER BY b.name ASC;
 
 -- name: AddUserBadge :exec
-INSERT INTO user_badges (user_id, badge_id)
-VALUES ($1, $2)
+INSERT INTO user_badges (user_id, badge_id, earned_at)
+VALUES ($1, $2, NOW())
 ON CONFLICT DO NOTHING;
 
 -- name: GetUserStations :many
@@ -47,6 +47,7 @@ ORDER BY id ASC;
 
 -- name: GetUserReservations :many
 SELECT r.id, r.date, r.hour, r.is_green, r.earned_coins, r.status,
+       r.confirmed_at, r.started_at, r.completed_at,
        s.id AS station_id, s.name AS station_name, s.price AS station_price
 FROM reservations r
 JOIN stations s ON s.id = r.station_id

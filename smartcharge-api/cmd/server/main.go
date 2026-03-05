@@ -61,7 +61,8 @@ func main() {
 	// ── Services ──────────────────────────────────────────
 	authService := auth.NewService(queries, jwtSecret)
 	stationService := station.NewService(queries)
-	reservationService := reservation.NewService(queries, pool)
+	badgeEvaluator := badge.NewEvaluator()
+	reservationService := reservation.NewService(queries, pool, badgeEvaluator)
 	userService := user.NewService(queries)
 	badgeService := badge.NewService(queries)
 	campaignService := campaign.NewService(queries)
@@ -97,7 +98,7 @@ func main() {
 	stationHandler.RegisterRoutes(v1, authMiddleware)
 	reservationHandler.RegisterRoutes(v1, authMiddleware)
 	userHandler.RegisterRoutes(v1, authMiddleware)
-	badgeHandler.RegisterRoutes(v1)
+	badgeHandler.RegisterRoutes(v1, authMiddleware)
 	campaignHandler.RegisterRoutes(v1, authMiddleware)
 	operatorHandler.RegisterRoutes(v1, authMiddleware)
 	chatHandler.RegisterRoutes(v1)

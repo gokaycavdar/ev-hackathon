@@ -12,24 +12,38 @@ type UpdateProfileRequest struct {
 
 // ProfileResponse is the full user profile with badges, stations, and reservations.
 type ProfileResponse struct {
-	ID           int32             `json:"id"`
-	Name         string            `json:"name"`
-	Email        string            `json:"email"`
-	Role         string            `json:"role"`
-	Coins        int32             `json:"coins"`
-	Co2Saved     float64           `json:"co2Saved"`
-	XP           int32             `json:"xp"`
-	Badges       []BadgeItem       `json:"badges"`
-	Stations     []StationItem     `json:"stations"`
-	Reservations []ReservationItem `json:"reservations"`
+	ID           int32               `json:"id"`
+	Name         string              `json:"name"`
+	Email        string              `json:"email"`
+	Role         string              `json:"role"`
+	Coins        int32               `json:"coins"`
+	Co2Saved     float64             `json:"co2Saved"`
+	XP           int32               `json:"xp"`
+	Badges       []BadgeItem         `json:"badges"`
+	AllBadges    []BadgeProgressItem `json:"allBadges"`
+	Stations     []StationItem       `json:"stations"`
+	Reservations []ReservationItem   `json:"reservations"`
 }
 
-// BadgeItem is a minimal badge for the profile.
+// BadgeItem is a minimal badge for the profile (earned badges only).
 type BadgeItem struct {
 	ID          int32  `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Icon        string `json:"icon"`
+}
+
+// BadgeProgressItem shows a badge with progress data (earned + unearned).
+type BadgeProgressItem struct {
+	ID           int32   `json:"id"`
+	Name         string  `json:"name"`
+	Description  string  `json:"description"`
+	Icon         string  `json:"icon"`
+	Metric       string  `json:"metric"`
+	Threshold    int32   `json:"threshold"`
+	CurrentCount int32   `json:"currentCount"`
+	Earned       bool    `json:"earned"`
+	EarnedAt     *string `json:"earnedAt"`
 }
 
 // StationItem is a minimal station for the profile.
@@ -49,6 +63,9 @@ type ReservationItem struct {
 	IsGreen     bool               `json:"isGreen"`
 	EarnedCoins int32              `json:"earnedCoins"`
 	Status      string             `json:"status"`
+	ConfirmedAt *string            `json:"confirmedAt,omitempty"`
+	StartedAt   *string            `json:"startedAt,omitempty"`
+	CompletedAt *string            `json:"completedAt,omitempty"`
 	Station     ReservationStation `json:"station"`
 }
 

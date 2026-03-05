@@ -40,12 +40,24 @@ func (s *Service) ListByOwner(ctx context.Context, ownerID int32) ([]CampaignRes
 	return result, nil
 }
 
-// ListForUser returns all active campaigns (stub — no badge matching).
-// Placeholder matchedBadges: []. Can be upgraded to real badge matching later.
-func (s *Service) ListForUser(ctx context.Context) ([]ForUserCampaignResponse, error) {
+// ListForUser returns all active campaigns with matchedBadges populated
+// from the user's earned badges intersected with campaign target badges.
+func (s *Service) ListForUser(ctx context.Context, userID int32) ([]ForUserCampaignResponse, error) {
 	campaigns, err := s.queries.ListActiveCampaigns(ctx)
 	if err != nil {
 		return nil, apperrors.ErrInternal
+	}
+
+	// Get user's earned badges
+	userBadges, err := s.queries.GetUserBadges(ctx, userID)
+	if err != nil {
+		userBadges = []generated.Badge{}
+	}
+
+	// Build lookup set of user badge IDs
+	userBadgeSet := make(map[int32]generated.Badge, len(userBadges))
+	for _, ub := range userBadges {
+		userBadgeSet[ub.ID] = ub
 	}
 
 	result := make([]ForUserCampaignResponse, 0, len(campaigns))
@@ -61,13 +73,21 @@ func (s *Service) ListForUser(ctx context.Context) ([]ForUserCampaignResponse, e
 			endDate = &s
 		}
 
-		badgeResponses := make([]BadgeResponse, len(badges))
+		targetBadgeResponses := make([]BadgeResponse, len(badges))
+		matchedBadgeResponses := make([]BadgeResponse, 0)
+
 		for i, b := range badges {
-			badgeResponses[i] = BadgeResponse{
+			br := BadgeResponse{
 				ID:          b.ID,
 				Name:        b.Name,
 				Description: b.Description,
 				Icon:        b.Icon,
+			}
+			targetBadgeResponses[i] = br
+
+			// Check if user has this badge
+			if _, ok := userBadgeSet[b.ID]; ok {
+				matchedBadgeResponses = append(matchedBadgeResponses, br)
 			}
 		}
 
@@ -78,8 +98,8 @@ func (s *Service) ListForUser(ctx context.Context) ([]ForUserCampaignResponse, e
 			Discount:      c.Discount,
 			CoinReward:    c.CoinReward,
 			EndDate:       endDate,
-			TargetBadges:  badgeResponses,
-			MatchedBadges: []BadgeResponse{}, // stub — no badge matching
+			TargetBadges:  targetBadgeResponses,
+			MatchedBadges: matchedBadgeResponses,
 		})
 	}
 	return result, nil

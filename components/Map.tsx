@@ -29,8 +29,8 @@ export type StationMarker = {
   lng: number;
   price: number;
   ownerName?: string | null;
-  mockLoad?: number;
-  mockStatus?: string;
+  load?: number;
+  status?: string;
 };
 
 type MapProps = {
@@ -39,6 +39,7 @@ type MapProps = {
   onMapClick?: () => void;
   initialCenter?: LatLngExpression;
   zoom?: number;
+  userLocation?: { lat: number; lng: number } | null;
 };
 
 function MapEvents({ onMapClick }: { onMapClick?: () => void }) {
@@ -50,12 +51,14 @@ function MapEvents({ onMapClick }: { onMapClick?: () => void }) {
   return null;
 }
 
-export default function Map({ stations, onSelect, onMapClick, initialCenter, zoom = 12 }: MapProps) {
+export default function Map({ stations, onSelect, onMapClick, initialCenter, zoom = 12, userLocation }: MapProps) {
   useEffect(() => {
     patchLeafletIcons();
   }, []);
 
-  const center: LatLngExpression = initialCenter ?? [38.614, 27.405];
+  const center: LatLngExpression = userLocation
+    ? [userLocation.lat, userLocation.lng]
+    : initialCenter ?? [38.614, 27.405];
 
   return (
     <div className="h-full w-full overflow-hidden border border-white/10 bg-surface-1">
@@ -89,8 +92,8 @@ export default function Map({ stations, onSelect, onMapClick, initialCenter, zoo
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         {stations.map((station) => {
-          const status = station.mockStatus || "GREEN";
-          const load = station.mockLoad || 0;
+          const status = station.status || "GREEN";
+          const load = station.load || 0;
           
           let colorClass = "bg-green-500";
           let shadowClass = "shadow-green-500/50";
@@ -127,8 +130,6 @@ export default function Map({ stations, onSelect, onMapClick, initialCenter, zoo
               <Marker 
                 position={[station.lat, station.lng] as LatLngExpression}
                 icon={customIcon}
-                // We remove the click handler here because the Popup handles the click
-                // eventHandlers={{ click: () => onSelect(station) }}
               >
                 <Popup className="custom-popup" minWidth={280} maxWidth={320}>
                   <div className="p-1">
@@ -177,6 +178,31 @@ export default function Map({ stations, onSelect, onMapClick, initialCenter, zoo
             </Fragment>
           );
         })}
+
+        {/* User location marker */}
+        {userLocation && (
+          <Marker
+            position={[userLocation.lat, userLocation.lng] as LatLngExpression}
+            icon={L.divIcon({
+              className: "user-location-icon bg-transparent border-none",
+              html: `
+                <div class="relative flex items-center justify-center w-16 h-16 -ml-4 -mt-4">
+                  <div class="absolute inset-0 rounded-full bg-blue-500 animate-ping opacity-20"></div>
+                  <div class="absolute inset-[25%] rounded-full bg-blue-400/30"></div>
+                  <div class="relative w-4 h-4 rounded-full bg-blue-500 border-2 border-white shadow-lg shadow-blue-500/50 z-10"></div>
+                </div>
+              `,
+              iconSize: [16, 16],
+              iconAnchor: [8, 8],
+            })}
+          >
+            <Popup className="custom-popup">
+              <div className="p-2 text-center">
+                <p className="text-sm font-bold text-white">Konumunuz</p>
+              </div>
+            </Popup>
+          </Marker>
+        )}
       </MapContainer>
     </div>
   );

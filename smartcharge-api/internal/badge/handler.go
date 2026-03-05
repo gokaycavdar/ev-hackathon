@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "smartcharge-api/internal/errors"
+	"smartcharge-api/internal/middleware"
 	"smartcharge-api/internal/response"
 )
 
@@ -18,15 +19,33 @@ func NewHandler(service *Service) *Handler {
 }
 
 // RegisterRoutes registers badge routes on the given router group.
-func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, authMiddleware gin.HandlerFunc) {
 	badges := rg.Group("/badges")
 
 	badges.GET("", h.List)
+	badges.GET("/progress", authMiddleware, h.Progress)
 }
 
 // List handles GET /v1/badges.
 func (h *Handler) List(c *gin.Context) {
 	badges, err := h.service.List(c.Request.Context())
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+	response.OK(c, badges)
+}
+
+// Progress handles GET /v1/badges/progress.
+// Returns all badges with the authenticated user's progress toward each.
+func (h *Handler) Progress(c *gin.Context) {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		response.Err(c, 401, "AUTH_UNAUTHORIZED", "Authentication required")
+		return
+	}
+
+	badges, err := h.service.ListWithProgress(c.Request.Context(), userID)
 	if err != nil {
 		handleError(c, err)
 		return

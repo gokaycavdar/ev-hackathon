@@ -39,3 +39,8 @@ func NewNotFoundError(resource string) *AppError {
 func NewConflictError(msg string) *AppError {
 	return &AppError{http.StatusConflict, "RESOURCE_CONFLICT", msg}
 }
+
+// NewForbiddenError creates a forbidden error with a custom message.
+func NewForbiddenError(msg string) *AppError {
+	return &AppError{http.StatusForbidden, "AUTH_FORBIDDEN", msg}
+}

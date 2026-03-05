@@ -31,8 +31,8 @@ type StationListItem struct {
 	Price         float64 `json:"price"`
 	OwnerID       *int32  `json:"ownerId"`
 	OwnerName     *string `json:"ownerName"`
-	MockLoad      int32   `json:"mockLoad"`
-	MockStatus    string  `json:"mockStatus"`
+	MockLoad      int32   `json:"load"`
+	MockStatus    string  `json:"status"`
 	NextGreenHour string  `json:"nextGreenHour"`
 }
 

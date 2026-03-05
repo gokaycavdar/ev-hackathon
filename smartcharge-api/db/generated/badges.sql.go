@@ -7,7 +7,41 @@ package generated
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const awardBadge = `-- name: AwardBadge :exec
+INSERT INTO user_badges (user_id, badge_id, earned_at)
+VALUES ($1, $2, NOW())
+ON CONFLICT (user_id, badge_id) DO NOTHING
+`
+
+type AwardBadgeParams struct {
+	UserID  int32 `json:"user_id"`
+	BadgeID int32 `json:"badge_id"`
+}
+
+func (q *Queries) AwardBadge(ctx context.Context, arg AwardBadgeParams) error {
+	_, err := q.db.Exec(ctx, awardBadge, arg.UserID, arg.BadgeID)
+	return err
+}
+
+const checkUserHasBadge = `-- name: CheckUserHasBadge :one
+SELECT COUNT(*) FROM user_badges WHERE user_id = $1 AND badge_id = $2
+`
+
+type CheckUserHasBadgeParams struct {
+	UserID  int32 `json:"user_id"`
+	BadgeID int32 `json:"badge_id"`
+}
+
+func (q *Queries) CheckUserHasBadge(ctx context.Context, arg CheckUserHasBadgeParams) (int64, error) {
+	row := q.db.QueryRow(ctx, checkUserHasBadge, arg.UserID, arg.BadgeID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
 
 const createBadge = `-- name: CreateBadge :one
 INSERT INTO badges (name, description, icon)
@@ -49,6 +83,149 @@ func (q *Queries) GetBadgeByID(ctx context.Context, id int32) (Badge, error) {
 	return i, err
 }
 
+const getBadgeProgressForUser = `-- name: GetBadgeProgressForUser :many
+SELECT bp.badge_id, bp.metric, bp.current_count, bp.last_updated
+FROM badge_progress bp
+WHERE bp.user_id = $1
+ORDER BY bp.badge_id ASC
+`
+
+type GetBadgeProgressForUserRow struct {
+	BadgeID      int32              `json:"badge_id"`
+	Metric       string             `json:"metric"`
+	CurrentCount int32              `json:"current_count"`
+	LastUpdated  pgtype.Timestamptz `json:"last_updated"`
+}
+
+func (q *Queries) GetBadgeProgressForUser(ctx context.Context, userID int32) ([]GetBadgeProgressForUserRow, error) {
+	rows, err := q.db.Query(ctx, getBadgeProgressForUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetBadgeProgressForUserRow{}
+	for rows.Next() {
+		var i GetBadgeProgressForUserRow
+		if err := rows.Scan(
+			&i.BadgeID,
+			&i.Metric,
+			&i.CurrentCount,
+			&i.LastUpdated,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getBadgesWithProgress = `-- name: GetBadgesWithProgress :many
+SELECT b.id, b.name, b.description, b.icon,
+       COALESCE(bc.metric, '') AS metric,
+       COALESCE(bc.threshold, 0) AS threshold,
+       COALESCE(bp.current_count, 0) AS current_count,
+       CASE WHEN ub.badge_id IS NOT NULL THEN TRUE ELSE FALSE END AS earned,
+       ub.earned_at
+FROM badges b
+LEFT JOIN badge_criteria bc ON bc.badge_id = b.id
+LEFT JOIN badge_progress bp ON bp.badge_id = b.id AND bp.user_id = $1 AND bp.metric = bc.metric
+LEFT JOIN user_badges ub ON ub.badge_id = b.id AND ub.user_id = $1
+ORDER BY b.id ASC
+`
+
+type GetBadgesWithProgressRow struct {
+	ID           int32              `json:"id"`
+	Name         string             `json:"name"`
+	Description  string             `json:"description"`
+	Icon         string             `json:"icon"`
+	Metric       string             `json:"metric"`
+	Threshold    int32              `json:"threshold"`
+	CurrentCount int32              `json:"current_count"`
+	Earned       bool               `json:"earned"`
+	EarnedAt     pgtype.Timestamptz `json:"earned_at"`
+}
+
+func (q *Queries) GetBadgesWithProgress(ctx context.Context, userID int32) ([]GetBadgesWithProgressRow, error) {
+	rows, err := q.db.Query(ctx, getBadgesWithProgress, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetBadgesWithProgressRow{}
+	for rows.Next() {
+		var i GetBadgesWithProgressRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.Icon,
+			&i.Metric,
+			&i.Threshold,
+			&i.CurrentCount,
+			&i.Earned,
+			&i.EarnedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listBadgeCriteria = `-- name: ListBadgeCriteria :many
+SELECT bc.id, bc.badge_id, bc.metric, bc.threshold, bc.time_window,
+       b.name AS badge_name, b.description AS badge_description, b.icon AS badge_icon
+FROM badge_criteria bc
+JOIN badges b ON b.id = bc.badge_id
+ORDER BY bc.badge_id ASC
+`
+
+type ListBadgeCriteriaRow struct {
+	ID               int32  `json:"id"`
+	BadgeID          int32  `json:"badge_id"`
+	Metric           string `json:"metric"`
+	Threshold        int32  `json:"threshold"`
+	TimeWindow       string `json:"time_window"`
+	BadgeName        string `json:"badge_name"`
+	BadgeDescription string `json:"badge_description"`
+	BadgeIcon        string `json:"badge_icon"`
+}
+
+func (q *Queries) ListBadgeCriteria(ctx context.Context) ([]ListBadgeCriteriaRow, error) {
+	rows, err := q.db.Query(ctx, listBadgeCriteria)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListBadgeCriteriaRow{}
+	for rows.Next() {
+		var i ListBadgeCriteriaRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.BadgeID,
+			&i.Metric,
+			&i.Threshold,
+			&i.TimeWindow,
+			&i.BadgeName,
+			&i.BadgeDescription,
+			&i.BadgeIcon,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listBadges = `-- name: ListBadges :many
 SELECT id, name, description, icon FROM badges ORDER BY name ASC
 `
@@ -76,4 +253,31 @@ func (q *Queries) ListBadges(ctx context.Context) ([]Badge, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const upsertBadgeProgress = `-- name: UpsertBadgeProgress :one
+INSERT INTO badge_progress (user_id, badge_id, metric, current_count, last_updated)
+VALUES ($1, $2, $3, 1, NOW())
+ON CONFLICT (user_id, badge_id, metric)
+DO UPDATE SET current_count = badge_progress.current_count + 1, last_updated = NOW()
+RETURNING user_id, badge_id, metric, current_count, last_updated
+`
+
+type UpsertBadgeProgressParams struct {
+	UserID  int32  `json:"user_id"`
+	BadgeID int32  `json:"badge_id"`
+	Metric  string `json:"metric"`
+}
+
+func (q *Queries) UpsertBadgeProgress(ctx context.Context, arg UpsertBadgeProgressParams) (BadgeProgress, error) {
+	row := q.db.QueryRow(ctx, upsertBadgeProgress, arg.UserID, arg.BadgeID, arg.Metric)
+	var i BadgeProgress
+	err := row.Scan(
+		&i.UserID,
+		&i.BadgeID,
+		&i.Metric,
+		&i.CurrentCount,
+		&i.LastUpdated,
+	)
+	return i, err
 }

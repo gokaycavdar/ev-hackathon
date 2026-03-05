@@ -14,7 +14,7 @@ import (
 const createStation = `-- name: CreateStation :one
 INSERT INTO stations (name, lat, lng, address, price, owner_id, density_profile)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, name, lat, lng, address, price, density, owner_id, density_profile
+RETURNING id, name, lat, lng, address, price, density, owner_id, density_profile, capacity
 `
 
 type CreateStationParams struct {
@@ -48,6 +48,7 @@ func (q *Queries) CreateStation(ctx context.Context, arg CreateStationParams) (S
 		&i.Density,
 		&i.OwnerID,
 		&i.DensityProfile,
+		&i.Capacity,
 	)
 	return i, err
 }
@@ -62,7 +63,7 @@ func (q *Queries) DeleteStation(ctx context.Context, id int32) error {
 }
 
 const getStationByID = `-- name: GetStationByID :one
-SELECT id, name, lat, lng, address, price, density, owner_id, density_profile FROM stations WHERE id = $1
+SELECT id, name, lat, lng, address, price, density, owner_id, density_profile, capacity FROM stations WHERE id = $1
 `
 
 func (q *Queries) GetStationByID(ctx context.Context, id int32) (Station, error) {
@@ -78,6 +79,7 @@ func (q *Queries) GetStationByID(ctx context.Context, id int32) (Station, error)
 		&i.Density,
 		&i.OwnerID,
 		&i.DensityProfile,
+		&i.Capacity,
 	)
 	return i, err
 }
@@ -191,7 +193,7 @@ SET name = COALESCE($2, name),
     address = COALESCE($5, address),
     price = COALESCE($6, price)
 WHERE id = $1
-RETURNING id, name, lat, lng, address, price, density, owner_id, density_profile
+RETURNING id, name, lat, lng, address, price, density, owner_id, density_profile, capacity
 `
 
 type UpdateStationParams struct {
@@ -223,6 +225,7 @@ func (q *Queries) UpdateStation(ctx context.Context, arg UpdateStationParams) (S
 		&i.Density,
 		&i.OwnerID,
 		&i.DensityProfile,
+		&i.Capacity,
 	)
 	return i, err
 }

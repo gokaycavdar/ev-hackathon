@@ -15,6 +15,22 @@ type Badge struct {
 	Icon        string `json:"icon"`
 }
 
+type BadgeCriterium struct {
+	ID         int32  `json:"id"`
+	BadgeID    int32  `json:"badge_id"`
+	Metric     string `json:"metric"`
+	Threshold  int32  `json:"threshold"`
+	TimeWindow string `json:"time_window"`
+}
+
+type BadgeProgress struct {
+	UserID       int32              `json:"user_id"`
+	BadgeID      int32              `json:"badge_id"`
+	Metric       string             `json:"metric"`
+	CurrentCount int32              `json:"current_count"`
+	LastUpdated  pgtype.Timestamptz `json:"last_updated"`
+}
+
 type Campaign struct {
 	ID          int32              `json:"id"`
 	Title       string             `json:"title"`
@@ -45,6 +61,11 @@ type Reservation struct {
 	EarnedCoins int32              `json:"earned_coins"`
 	SavedCo2    float64            `json:"saved_co2"`
 	Status      string             `json:"status"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	ConfirmedAt pgtype.Timestamptz `json:"confirmed_at"`
+	StartedAt   pgtype.Timestamptz `json:"started_at"`
+	CompletedAt pgtype.Timestamptz `json:"completed_at"`
 }
 
 type Station struct {
@@ -57,6 +78,7 @@ type Station struct {
 	Density        int32       `json:"density"`
 	OwnerID        pgtype.Int4 `json:"owner_id"`
 	DensityProfile string      `json:"density_profile"`
+	Capacity       int32       `json:"capacity"`
 }
 
 type StationDensityForecast struct {
@@ -82,6 +104,7 @@ type User struct {
 }
 
 type UserBadge struct {
-	UserID  int32 `json:"user_id"`
-	BadgeID int32 `json:"badge_id"`
+	UserID   int32              `json:"user_id"`
+	BadgeID  int32              `json:"badge_id"`
+	EarnedAt pgtype.Timestamptz `json:"earned_at"`
 }

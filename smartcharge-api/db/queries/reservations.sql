@@ -12,9 +12,27 @@ SET status = $2
 WHERE id = $1
 RETURNING *;
 
+-- name: ConfirmReservation :one
+UPDATE reservations
+SET status = 'CONFIRMED', confirmed_at = NOW()
+WHERE id = $1
+RETURNING *;
+
+-- name: StartCharging :one
+UPDATE reservations
+SET status = 'CHARGING', started_at = NOW()
+WHERE id = $1
+RETURNING *;
+
 -- name: CompleteReservation :one
 UPDATE reservations
-SET status = 'COMPLETED', earned_coins = $2
+SET status = 'COMPLETED', earned_coins = $2, saved_co2 = $3, completed_at = NOW()
+WHERE id = $1
+RETURNING *;
+
+-- name: FailReservation :one
+UPDATE reservations
+SET status = 'FAILED'
 WHERE id = $1
 RETURNING *;
 
@@ -37,3 +55,10 @@ SELECT COALESCE(SUM(
 FROM reservations r
 JOIN stations s ON s.id = r.station_id
 WHERE r.station_id = $1;
+
+-- name: CountActiveReservations :one
+SELECT COUNT(*)::int FROM reservations
+WHERE station_id = $1
+  AND date::date = $2::date
+  AND hour = $3
+  AND status NOT IN ('CANCELLED', 'FAILED');

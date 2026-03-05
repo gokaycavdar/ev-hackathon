@@ -274,8 +274,8 @@ export default function StationsPage() {
                lat: s.lat || 38.4192,
                lng: s.lng || 27.1287,
                price: s.price,
-               mockLoad: s.load,
-               mockStatus: s.status,
+               load: s.load,
+               status: s.status,
              }))} onSelect={() => {}} />
           </div>
         )}
