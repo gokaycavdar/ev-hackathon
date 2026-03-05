@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Award, Coins, Leaf, Loader2, Sparkles, Trophy, Users } from "lucide-react";
+import { ArrowLeft, Award, Coins, Leaf, Loader2, Sparkles, Trophy, Users, Zap } from "lucide-react";
 import Link from "next/link";
 import { authFetch, unwrapResponse, getStoredUserId } from "@/lib/auth";
 
@@ -43,13 +43,27 @@ type LeaderboardEntry = {
 	xp: number;
 };
 
+type ScoredStation = {
+	stationId?: number;
+	StationID?: number;
+	score?: number;
+	Score?: number;
+	components?: Record<string, number | undefined>;
+	Components?: Record<string, number | undefined>;
+	explanation?: string;
+	Explanation?: string;
+};
+
 export default function DriverWalletPage() {
 	const [user, setUser] = useState<UserPayload | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
-	const [activeTab, setActiveTab] = useState<"overview" | "badges" | "leaderboard">("overview");
+	const [activeTab, setActiveTab] = useState<"overview" | "badges" | "leaderboard" | "recommendations">("overview");
 	const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 	const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
+	const [recommendations, setRecommendations] = useState<ScoredStation[]>([]);
+	const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
+	const [recommendationStations, setRecommendationStations] = useState<Record<number, { name: string; lat: number; lng: number; price: number; address?: string }>>({});
 
 	useEffect(() => {
 		const userId = getStoredUserId();
@@ -98,6 +112,40 @@ export default function DriverWalletPage() {
 		loadLeaderboard();
 		return () => controller.abort();
 	}, [activeTab, leaderboard.length]);
+
+	// Fetch recommendations when tab switches to recommendations
+	useEffect(() => {
+		if (activeTab !== "recommendations") return;
+		const controller = new AbortController();
+		const loadRecommendations = async () => {
+			setIsLoadingRecommendations(true);
+			try {
+				console.log("Fetching recommendations...");
+				
+				// First fetch station details
+				const stationsRes = await authFetch("/api/stations", { signal: controller.signal });
+				const stationsData = await unwrapResponse<{ id: number; name: string; lat: number; lng: number; price: number; address?: string }[]>(stationsRes);
+				console.log("Stations response:", stationsData);
+				
+				const stationMap: Record<number, { name: string; lat: number; lng: number; price: number; address?: string }> = {};
+				stationsData.forEach((s) => { stationMap[s.id] = { name: s.name, lat: s.lat, lng: s.lng, price: s.price, address: s.address }; });
+				setRecommendationStations(stationMap);
+				
+				// Then fetch recommendations
+				const response = await authFetch("/api/stations/recommend?limit=10", { signal: controller.signal });
+				const data = await unwrapResponse<{ algorithm: string; results: ScoredStation[] }>(response);
+				console.log("Recommendations response:", data);
+				setRecommendations(data.results || []);
+			} catch (err) {
+				if (err instanceof DOMException && err.name === "AbortError") return;
+				console.error("Recommendations fetch failed", err);
+			} finally {
+				setIsLoadingRecommendations(false);
+			}
+		};
+		loadRecommendations();
+		return () => controller.abort();
+	}, [activeTab]);
 
 	// Compute user's rank in leaderboard
 	const userRank = useMemo(() => {
@@ -164,6 +212,13 @@ export default function DriverWalletPage() {
 						>
 							Liderlik Tablosu
 							{activeTab === "leaderboard" && <span className="absolute bottom-0 left-0 h-0.5 w-full bg-accent-primary shadow-[0_0_10px_rgba(59,130,246,0.5)]" />}
+						</button>
+						<button 
+							onClick={() => setActiveTab("recommendations")} 
+							className={`relative pb-4 text-sm font-medium transition-colors ${activeTab === "recommendations" ? "text-accent-primary" : "text-text-tertiary hover:text-white"}`}
+						>
+							✨ Sana Özel
+							{activeTab === "recommendations" && <span className="absolute bottom-0 left-0 h-0.5 w-full bg-accent-primary shadow-[0_0_10px_rgba(59,130,246,0.5)]" />}
 						</button>
 					</div>
 
@@ -379,6 +434,109 @@ export default function DriverWalletPage() {
 														</div>
 													</div>
 												)}
+											</div>
+										)}
+									</div>
+								</div>
+							)}
+
+							{/* RECOMMENDATIONS TAB - RL SCORES */}
+							{activeTab === "recommendations" && (
+								<div className="mx-auto max-w-3xl">
+									<div className="rounded-[2rem] border border-white/10 bg-surface-1 p-8 shadow-2xl">
+										<div className="mb-8 flex items-center justify-between">
+											<h2 className="flex items-center gap-3 text-2xl font-bold text-white">
+												<Sparkles className="h-8 w-8 text-purple-400" />
+												 Sana Özel Öneriler
+											</h2>
+											<span className="rounded-full bg-purple-500/20 px-3 py-1 text-xs font-medium text-purple-400 ring-1 ring-purple-500/40">
+												AI Destekli
+											</span>
+										</div>
+										
+										{isLoadingRecommendations ? (
+											<div className="flex flex-col items-center justify-center gap-3 py-12 text-text-tertiary">
+												<Loader2 className="h-6 w-6 animate-spin text-purple-500" />
+												<p>AI önerileri hesaplanıyor...</p>
+											</div>
+										) : recommendations.length === 0 ? (
+											<div className="text-center py-12 text-text-tertiary">
+												<p>Öneriler yüklenemedi.</p>
+											</div>
+										) : (
+											<div className="space-y-4">
+												{recommendations.map((rec, i) => {
+													const stationId = (rec.stationId ?? rec.StationID ?? 0);
+													const station = recommendationStations[stationId];
+													const scorePercent = Math.round(rec.score ?? rec.Score ?? 0);
+													const components = rec.components ?? rec.Components ?? {};
+													const loadScore = Math.round(components.load ?? components.Load ?? 0);
+													const greenScore = Math.round(components.green ?? components.Green ?? 0);
+													const priceScore = Math.round(components.price ?? components.Price ?? 0);
+													const rlBonus = components.rl_bonus ?? components.q_value ?? 0;
+													
+													return (
+														<div 
+															key={stationId} 
+															className="relative overflow-hidden rounded-2xl border border-purple-500/20 bg-gradient-to-r from-purple-500/5 to-transparent p-4 transition-all hover:border-purple-500/40 hover:scale-[1.01]"
+														>
+															{/* Rank Badge */}
+															<div className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-purple-500 text-xs font-bold text-white shadow-lg z-10">
+																{i + 1}
+															</div>
+
+															<div className="flex items-start justify-between pr-8">
+																<div className="flex-1">
+																	<h3 className="font-bold text-white text-lg pr-8">
+																		{station?.name || `İstasyon #${stationId}`}
+																		{station?.address && <span className="block text-sm text-text-tertiary font-normal mt-1">{station.address}</span>}
+																	</h3>
+																	<p className="text-sm text-text-tertiary mt-1">
+																		{rec.explanation || rec.Explanation}
+																	</p>
+																	
+																	{/* Score Breakdown */}
+																	<div className="mt-4 flex flex-wrap gap-3">
+																		<div className="flex items-center gap-1.5 rounded-lg bg-surface-2 px-2 py-1">
+																			<Zap className="h-3 w-3 text-blue-400" />
+																			<span className="text-xs text-text-secondary">Yoğunluk: <span className="font-medium text-white">{loadScore}</span></span>
+																		</div>
+																		<div className="flex items-center gap-1.5 rounded-lg bg-surface-2 px-2 py-1">
+																			<Leaf className="h-3 w-3 text-green-400" />
+																			<span className="text-xs text-text-secondary">Yeşil: <span className="font-medium text-white">{greenScore}</span></span>
+																		</div>
+																		<div className="flex items-center gap-1.5 rounded-lg bg-surface-2 px-2 py-1">
+																			<Coins className="h-3 w-3 text-yellow-400" />
+																			<span className="text-xs text-text-secondary">Fiyat: <span className="font-medium text-white">{priceScore}</span></span>
+																		</div>
+																		{rlBonus > 0 && (
+																			<div className="flex items-center gap-1.5 rounded-lg bg-purple-500/20 px-2 py-1 ring-1 ring-purple-500/40">
+																				<Sparkles className="h-3 w-3 text-purple-400" />
+																				<span className="text-xs text-purple-300">RL Bonus: <span className="font-medium">+{Math.round(rlBonus)}</span></span>
+																			</div>
+																		)}
+																	</div>
+																</div>
+
+																{/* Total Score */}
+																<div className="ml-4 flex flex-col items-center">
+																	<div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-blue-500 shadow-lg shadow-purple-500/30">
+																		<span className="text-xl font-bold text-white">{scorePercent}</span>
+																	</div>
+																	<span className="mt-1 text-[10px] text-purple-400 font-medium">PUAN</span>
+																</div>
+															</div>
+
+															{/* Station Info */}
+															{station && (
+																<div className="mt-4 pt-3 border-t border-white/5 flex items-center gap-4 text-xs text-text-tertiary">
+																	<span>💰 {station.price?.toFixed(2) || "---"} ₺/kWh</span>
+																	{station.address && <span>📍 {station.address}</span>}
+																</div>
+															)}
+														</div>
+													);
+												})}
 											</div>
 										)}
 									</div>

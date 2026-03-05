@@ -8,17 +8,19 @@ import (
 
 	apperrors "smartcharge-api/internal/errors"
 	"smartcharge-api/internal/middleware"
+	"smartcharge-api/internal/recommend"
 	"smartcharge-api/internal/response"
 )
 
 // Handler handles HTTP requests for stations.
 type Handler struct {
-	service *Service
+	service   *Service
+	recommend *recommend.Service
 }
 
 // NewHandler creates a new station handler.
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, recommendSvc *recommend.Service) *Handler {
+	return &Handler{service: service, recommend: recommendSvc}
 }
 
 // RegisterRoutes registers station routes on the given router group.
@@ -28,6 +30,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, authMiddleware gin.Handler
 	// Public routes
 	stations.GET("", h.ListStations)
 	stations.GET("/forecast", h.GetForecasts)
+	stations.GET("/recommend", h.GetRecommendations)
 	stations.GET("/:id", h.GetStation)
 
 	// Protected routes
@@ -128,6 +131,70 @@ func (h *Handler) GetForecasts(c *gin.Context) {
 		handleError(c, err)
 		return
 	}
+	response.OK(c, result)
+}
+
+// GetRecommendations handles GET /v1/stations/recommend.
+// Query params: lat, lng, hour, day, limit, algorithm (linear|rl)
+func (h *Handler) GetRecommendations(c *gin.Context) {
+	now := time.Now()
+
+	var lat, lng float64 = 38.619, 27.429 // Default: Manisa city center
+	hour := now.Hour()
+	limit := 10
+
+	if l := c.Query("lat"); l != "" {
+		val, err := strconv.ParseFloat(l, 64)
+		if err == nil {
+			lat = val
+		}
+	}
+	if l := c.Query("lng"); l != "" {
+		val, err := strconv.ParseFloat(l, 64)
+		if err == nil {
+			lng = val
+		}
+	}
+	if h := c.Query("hour"); h != "" {
+		val, err := strconv.Atoi(h)
+		if err == nil && val >= 0 && val <= 23 {
+			hour = val
+		}
+	}
+	if l := c.Query("limit"); l != "" {
+		val, err := strconv.Atoi(l)
+		if err == nil && val > 0 && val <= 50 {
+			limit = val
+		}
+	}
+
+	timeSlot := time.Date(2026, 2, 25, hour, 0, 0, 0, time.UTC)
+	timeSlot = time.Date(timeSlot.Year(), timeSlot.Month(), timeSlot.Day(), hour, 0, 0, 0, time.UTC)
+
+	var userID int32
+	if uID, ok := middleware.GetUserID(c); ok {
+		userID = uID
+	}
+
+	req := recommend.ScoreRequest{
+		UserID:   userID,
+		UserLat:  lat,
+		UserLng:  lng,
+		TimeSlot: timeSlot,
+		Limit:    limit,
+	}
+
+	scored, err := h.recommend.Recommend(c.Request.Context(), req)
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+
+	result := map[string]interface{}{
+		"algorithm": h.recommend.GetScorerName(),
+		"results":   scored,
+	}
+
 	response.OK(c, result)
 }
 
