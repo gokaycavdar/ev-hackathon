@@ -11,6 +11,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"smartcharge-api/db/generated"
@@ -49,6 +52,9 @@ func main() {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
 	log.Println("Connected to database")
+
+	// Run database migrations
+	runMigrations(cfg.DatabaseURL)
 
 	// Initialize SQLC queries
 	queries := generated.New(pool)
@@ -149,4 +155,23 @@ func main() {
 	}
 
 	log.Println("Server exited gracefully")
+}
+
+// runMigrations applies all pending database migrations from db/migrations/.
+func runMigrations(databaseURL string) {
+	m, err := migrate.New("file://db/migrations", databaseURL)
+	if err != nil {
+		log.Fatalf("Failed to create migrate instance: %v", err)
+	}
+	defer m.Close()
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		log.Fatalf("Migration failed: %v", err)
+	}
+
+	version, dirty, _ := m.Version()
+	if dirty {
+		log.Fatalf("Database is in dirty state at version %d. Manual intervention required.", version)
+	}
+	log.Printf("Migrations applied successfully (version: %d)", version)
 }
