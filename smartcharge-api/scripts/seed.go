@@ -347,8 +347,8 @@ func main() {
 	_ = godotenv.Load()
 
 	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" || dbURL == "postgres://admin:admin@localhost:5432/evcharge?sslmode=disable" {
-		dbURL = "postgres://u3h5bfpnovm3pi:p1da28f8501cfe73e3863d759a3aa36d99943ebd0cd9935ec2a357917417a89c6@c55vaqijj0vpoi.cluster-czrs8kj4isg7.us-east-1.rds.amazonaws.com:5432/d9f505a4m499r6?sslmode=require"
+	if dbURL == "" {
+		dbURL = "postgres://admin:admin@localhost:5432/evcharge?sslmode=disable"
 	}
 
 	ctx := context.Background()
