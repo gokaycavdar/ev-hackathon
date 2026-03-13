@@ -311,7 +311,7 @@ var campaignSeeds = []campaignSeed{
 		target:      "Gece Kuşu badge'ine sahip kullanıcılar",
 		discount:    "%20",
 		coinReward:  100,
-		endDate:     time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
+		endDate:     time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
 		badgeIndex:  0, // Gece Kuşu
 	},
 	{
@@ -320,7 +320,7 @@ var campaignSeeds = []campaignSeed{
 		target:      "Eco Şampiyonu badge'ine sahip kullanıcılar",
 		discount:    "2x Coin",
 		coinReward:  200,
-		endDate:     time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC),
+		endDate:     time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
 		badgeIndex:  1, // Eco Şampiyonu
 	},
 	{
@@ -329,7 +329,7 @@ var campaignSeeds = []campaignSeed{
 		target:      "Hafta Sonu Savaşçısı badge'ine sahip kullanıcılar",
 		discount:    "İlk saat ücretsiz",
 		coinReward:  75,
-		endDate:     time.Date(2026, 2, 15, 0, 0, 0, 0, time.UTC),
+		endDate:     time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
 		badgeIndex:  2, // Hafta Sonu Savaşçısı
 	},
 	{
@@ -338,7 +338,7 @@ var campaignSeeds = []campaignSeed{
 		target:      "Erken Kalkan badge'ine sahip kullanıcılar",
 		discount:    "%15",
 		coinReward:  50,
-		endDate:     time.Date(2026, 3, 15, 0, 0, 0, 0, time.UTC),
+		endDate:     time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC),
 		badgeIndex:  3, // Erken Kalkan
 	},
 }
@@ -347,8 +347,8 @@ func main() {
 	_ = godotenv.Load()
 
 	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		dbURL = "postgres://admin:admin@localhost:5432/evcharge?sslmode=disable"
+	if dbURL == "" || dbURL == "postgres://admin:admin@localhost:5432/evcharge?sslmode=disable" {
+		dbURL = "postgres://u3h5bfpnovm3pi:p1da28f8501cfe73e3863d759a3aa36d99943ebd0cd9935ec2a357917417a89c6@c55vaqijj0vpoi.cluster-czrs8kj4isg7.us-east-1.rds.amazonaws.com:5432/d9f505a4m499r6?sslmode=require"
 	}
 
 	ctx := context.Background()
