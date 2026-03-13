@@ -12,17 +12,18 @@ type UpdateProfileRequest struct {
 
 // ProfileResponse is the full user profile with badges, stations, and reservations.
 type ProfileResponse struct {
-	ID           int32               `json:"id"`
-	Name         string              `json:"name"`
-	Email        string              `json:"email"`
-	Role         string              `json:"role"`
-	Coins        int32               `json:"coins"`
-	Co2Saved     float64             `json:"co2Saved"`
-	XP           int32               `json:"xp"`
-	Badges       []BadgeItem         `json:"badges"`
-	AllBadges    []BadgeProgressItem `json:"allBadges"`
-	Stations     []StationItem       `json:"stations"`
-	Reservations []ReservationItem   `json:"reservations"`
+	ID                     int32               `json:"id"`
+	Name                   string              `json:"name"`
+	Email                  string              `json:"email"`
+	Role                   string              `json:"role"`
+	Coins                  int32               `json:"coins"`
+	Co2Saved               float64             `json:"co2Saved"`
+	XP                     int32               `json:"xp"`
+	Badges                 []BadgeItem         `json:"badges"`
+	AllBadges              []BadgeProgressItem `json:"allBadges"`
+	Stations               []StationItem       `json:"stations"`
+	Reservations           []ReservationItem   `json:"reservations"`
+	ReviewedReservationIDs []int32             `json:"reviewedReservationIds"`
 }
 
 // BadgeItem is a minimal badge for the profile (earned badges only).

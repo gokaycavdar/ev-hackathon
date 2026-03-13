@@ -89,6 +89,12 @@ func (h *Handler) Create(c *gin.Context) {
 
 // Update handles PUT /v1/campaigns/:id.
 func (h *Handler) Update(c *gin.Context) {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		response.Err(c, 401, "AUTH_UNAUTHORIZED", "Authentication required")
+		return
+	}
+
 	id, err := parseID(c)
 	if err != nil {
 		return
@@ -100,7 +106,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	result, err := h.service.Update(c.Request.Context(), id, req)
+	result, err := h.service.Update(c.Request.Context(), userID, id, req)
 	if err != nil {
 		handleError(c, err)
 		return
@@ -110,12 +116,18 @@ func (h *Handler) Update(c *gin.Context) {
 
 // Delete handles DELETE /v1/campaigns/:id.
 func (h *Handler) Delete(c *gin.Context) {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		response.Err(c, 401, "AUTH_UNAUTHORIZED", "Authentication required")
+		return
+	}
+
 	id, err := parseID(c)
 	if err != nil {
 		return
 	}
 
-	if err := h.service.Delete(c.Request.Context(), id); err != nil {
+	if err := h.service.Delete(c.Request.Context(), userID, id); err != nil {
 		handleError(c, err)
 		return
 	}

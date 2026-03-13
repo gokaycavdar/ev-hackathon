@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   ArrowLeft, BatteryCharging, Calendar, Clock, Leaf, Loader2,
-  Zap, CheckCircle2, X, ShieldCheck, PlayCircle, AlertTriangle
+  Zap, CheckCircle2, X, ShieldCheck, PlayCircle, AlertTriangle,
+  Star, MessageSquare, Send
 } from "lucide-react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
@@ -28,6 +29,7 @@ type Reservation = {
 
 type UserPayload = {
   reservations: Reservation[];
+  reviewedReservationIds?: number[];
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
@@ -70,6 +72,7 @@ export default function AppointmentsPage() {
   const [activeChargingId, setActiveChargingId] = useState<number | null>(null);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [reviewedIds, setReviewedIds] = useState<Set<number>>(new Set());
 
   const activeReservations = reservations.filter(
     (r) => r.status === "PENDING" || r.status === "CONFIRMED" || r.status === "CHARGING"
@@ -92,6 +95,9 @@ export default function AppointmentsPage() {
       const response = await authFetch(`/api/users/${userId}`);
       const data = await unwrapResponse<UserPayload>(response);
       setReservations(data.reservations);
+      if (data.reviewedReservationIds) {
+        setReviewedIds(new Set(data.reviewedReservationIds));
+      }
     } catch (err) {
       console.error("Appointments fetch failed", err);
       setError("Randevular yüklenemedi.");
@@ -192,6 +198,31 @@ export default function AppointmentsPage() {
       showToast("İşlem kaydedilemedi.", "error");
     } finally {
       setActiveChargingId(null);
+    }
+  };
+
+  const handleReviewSubmit = async (reservationId: number, stationId: number, rating: number, comment: string) => {
+    try {
+      const res = await authFetch("/api/reviews", {
+        method: "POST",
+        body: JSON.stringify({ stationId, reservationId, rating, comment }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        // If already reviewed (409 CONFLICT), silently mark as reviewed
+        if (res.status === 409) {
+          setReviewedIds((prev) => new Set(prev).add(reservationId));
+          showToast("Bu rezervasyon zaten değerlendirilmiş.", "error");
+          return;
+        }
+        const msg = body?.error?.message || "Değerlendirme gönderilemedi.";
+        showToast(msg, "error");
+        return;
+      }
+      setReviewedIds((prev) => new Set(prev).add(reservationId));
+      showToast(`Değerlendirme gönderildi! ${rating} yıldız`, "success");
+    } catch {
+      showToast("Değerlendirme gönderilemedi.", "error");
     }
   };
 
@@ -347,6 +378,21 @@ export default function AppointmentsPage() {
                           </div>
                         </div>
                       </div>
+
+                      {/* Review Section */}
+                      {!reviewedIds.has(res.id) && (
+                        <ReviewForm
+                          reservationId={res.id}
+                          stationId={res.station.id}
+                          onSubmit={handleReviewSubmit}
+                        />
+                      )}
+                      {reviewedIds.has(res.id) && (
+                        <div className="mt-4 pt-4 border-t border-white/5 flex items-center gap-2 text-green-400 text-sm">
+                          <CheckCircle2 className="h-4 w-4" />
+                          <span className="font-medium">Değerlendirme gönderildi</span>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -431,6 +477,107 @@ function StatusBadge({ status }: { status: string }) {
     >
       {config.icon} {config.label}
     </span>
+  );
+}
+
+// --- Review Form ---
+
+function ReviewForm({
+  reservationId,
+  stationId,
+  onSubmit,
+}: {
+  reservationId: number;
+  stationId: number;
+  onSubmit: (reservationId: number, stationId: number, rating: number, comment: string) => void;
+}) {
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (rating === 0) return;
+    setSubmitting(true);
+    await onSubmit(reservationId, stationId, rating, comment);
+    setSubmitting(false);
+  };
+
+  if (!isOpen) {
+    return (
+      <div className="mt-4 pt-4 border-t border-white/5">
+        <button
+          onClick={() => setIsOpen(true)}
+          className="flex items-center gap-2 text-sm text-text-tertiary hover:text-accent-primary transition"
+        >
+          <MessageSquare className="h-4 w-4" />
+          <span>Değerlendirme Yap</span>
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 pt-4 border-t border-white/5 space-y-3">
+      <p className="text-sm font-medium text-text-secondary">Bu istasyonu değerlendir</p>
+
+      {/* Star rating */}
+      <div className="flex items-center gap-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            type="button"
+            onClick={() => setRating(star)}
+            onMouseEnter={() => setHoverRating(star)}
+            onMouseLeave={() => setHoverRating(0)}
+            className="p-0.5 transition-transform hover:scale-110"
+          >
+            <Star
+              className={`h-6 w-6 transition-colors ${
+                star <= (hoverRating || rating)
+                  ? "fill-yellow-400 text-yellow-400"
+                  : "text-slate-600"
+              }`}
+            />
+          </button>
+        ))}
+        {rating > 0 && (
+          <span className="ml-2 text-sm text-text-secondary">{rating}/5</span>
+        )}
+      </div>
+
+      {/* Comment */}
+      <textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        placeholder="Deneyiminizi paylaşın (isteğe bağlı)..."
+        rows={2}
+        className="w-full bg-surface-2 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-text-tertiary resize-none focus:outline-none focus:ring-1 focus:ring-accent-primary/50"
+      />
+
+      {/* Actions */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleSubmit}
+          disabled={rating === 0 || submitting}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent-primary hover:bg-accent-hover text-white text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {submitting ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="h-4 w-4" />
+          )}
+          Gönder
+        </button>
+        <button
+          onClick={() => setIsOpen(false)}
+          className="px-4 py-2 rounded-lg text-sm text-text-tertiary hover:text-white transition"
+        >
+          Vazgeç
+        </button>
+      </div>
+    </div>
   );
 }
 

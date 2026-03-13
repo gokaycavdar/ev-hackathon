@@ -91,24 +91,21 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*AuthRespo
 	}
 
 	// Hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), 12)
 	if err != nil {
 		return nil, apperrors.ErrInternal
 	}
 
-	// Determine role
-	role := req.Role
-	if role == "" {
-		role = "DRIVER"
-		// Auto-assign OPERATOR based on email domain
-		parts := strings.Split(email, "@")
-		if len(parts) == 2 {
-			domain := strings.ToLower(parts[1])
-			for _, d := range operatorDomains {
-				if domain == d {
-					role = "OPERATOR"
-					break
-				}
+	// Determine role: always default to DRIVER, auto-assign OPERATOR based on email domain.
+	// Role is never accepted from client input to prevent privilege escalation.
+	role := "DRIVER"
+	parts := strings.Split(email, "@")
+	if len(parts) == 2 {
+		domain := strings.ToLower(parts[1])
+		for _, d := range operatorDomains {
+			if domain == d {
+				role = "OPERATOR"
+				break
 			}
 		}
 	}

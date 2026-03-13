@@ -173,11 +173,17 @@ func (s *Service) Create(ctx context.Context, ownerID int32, req CreateCampaignR
 }
 
 // Update updates a campaign's fields and reconnects target badges (disconnect all, then reconnect).
-func (s *Service) Update(ctx context.Context, campaignID int32, req UpdateCampaignRequest) (*CampaignResponse, error) {
+// Verifies that the campaign belongs to the requesting user.
+func (s *Service) Update(ctx context.Context, ownerID int32, campaignID int32, req UpdateCampaignRequest) (*CampaignResponse, error) {
 	// Verify campaign exists
 	existing, err := s.queries.GetCampaignByID(ctx, campaignID)
 	if err != nil {
 		return nil, apperrors.NewNotFoundError("Campaign")
+	}
+
+	// Ownership check
+	if existing.OwnerID != ownerID {
+		return nil, apperrors.NewForbiddenError("Bu kampanya size ait degil")
 	}
 
 	// Parse endDate
@@ -251,11 +257,17 @@ func (s *Service) Update(ctx context.Context, campaignID int32, req UpdateCampai
 }
 
 // Delete deletes a campaign by ID.
-func (s *Service) Delete(ctx context.Context, campaignID int32) error {
+// Verifies that the campaign belongs to the requesting user.
+func (s *Service) Delete(ctx context.Context, ownerID int32, campaignID int32) error {
 	// Verify it exists
-	_, err := s.queries.GetCampaignByID(ctx, campaignID)
+	existing, err := s.queries.GetCampaignByID(ctx, campaignID)
 	if err != nil {
 		return apperrors.NewNotFoundError("Campaign")
+	}
+
+	// Ownership check
+	if existing.OwnerID != ownerID {
+		return apperrors.NewForbiddenError("Bu kampanya size ait degil")
 	}
 
 	// Remove badge links first (FK constraint)

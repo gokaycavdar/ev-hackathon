@@ -90,6 +90,16 @@ type StationDensityForecast struct {
 	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 }
 
+type StationReview struct {
+	ID            int32              `json:"id"`
+	UserID        int32              `json:"user_id"`
+	StationID     int32              `json:"station_id"`
+	ReservationID int32              `json:"reservation_id"`
+	Rating        int32              `json:"rating"`
+	Comment       string             `json:"comment"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
 type User struct {
 	ID        int32              `json:"id"`
 	Name      string             `json:"name"`

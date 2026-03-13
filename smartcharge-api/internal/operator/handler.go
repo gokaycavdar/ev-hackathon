@@ -70,6 +70,12 @@ func (h *Handler) CreateStation(c *gin.Context) {
 
 // UpdateStation handles PUT /v1/company/my-stations/:id.
 func (h *Handler) UpdateStation(c *gin.Context) {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		response.Err(c, 401, "AUTH_UNAUTHORIZED", "Authentication required")
+		return
+	}
+
 	id, err := parseID(c)
 	if err != nil {
 		return
@@ -81,7 +87,7 @@ func (h *Handler) UpdateStation(c *gin.Context) {
 		return
 	}
 
-	result, err := h.service.UpdateStation(c.Request.Context(), id, req)
+	result, err := h.service.UpdateStation(c.Request.Context(), userID, id, req)
 	if err != nil {
 		handleError(c, err)
 		return
@@ -91,12 +97,18 @@ func (h *Handler) UpdateStation(c *gin.Context) {
 
 // DeleteStation handles DELETE /v1/company/my-stations/:id.
 func (h *Handler) DeleteStation(c *gin.Context) {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		response.Err(c, 401, "AUTH_UNAUTHORIZED", "Authentication required")
+		return
+	}
+
 	id, err := parseID(c)
 	if err != nil {
 		return
 	}
 
-	if err := h.service.DeleteStation(c.Request.Context(), id); err != nil {
+	if err := h.service.DeleteStation(c.Request.Context(), userID, id); err != nil {
 		handleError(c, err)
 		return
 	}

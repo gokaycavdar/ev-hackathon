@@ -1,11 +1,13 @@
 package station
 
 import (
+	"math"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
+	"smartcharge-api/db/generated"
 	apperrors "smartcharge-api/internal/errors"
 	"smartcharge-api/internal/middleware"
 	"smartcharge-api/internal/recommend"
@@ -16,11 +18,12 @@ import (
 type Handler struct {
 	service   *Service
 	recommend *recommend.Service
+	queries   *generated.Queries
 }
 
 // NewHandler creates a new station handler.
-func NewHandler(service *Service, recommendSvc *recommend.Service) *Handler {
-	return &Handler{service: service, recommend: recommendSvc}
+func NewHandler(service *Service, recommendSvc *recommend.Service, queries *generated.Queries) *Handler {
+	return &Handler{service: service, recommend: recommendSvc, queries: queries}
 }
 
 // RegisterRoutes registers station routes on the given router group.
@@ -60,6 +63,14 @@ func (h *Handler) GetStation(c *gin.Context) {
 		handleError(c, err)
 		return
 	}
+
+	// Enrich with review data
+	avgRow, avgErr := h.queries.GetStationAverageRating(c.Request.Context(), id)
+	if avgErr == nil {
+		result.AverageRating = math.Round(avgRow.AverageRating*100) / 100
+		result.ReviewCount = avgRow.ReviewCount
+	}
+
 	response.OK(c, result)
 }
 

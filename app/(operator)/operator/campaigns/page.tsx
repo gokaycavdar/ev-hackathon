@@ -248,7 +248,7 @@ export default function CampaignsPage() {
                 {["ACTIVE", "DRAFT", "ENDED"].map((status) => (
                   <button
                     key={status}
-                    onClick={() => setFormData({ ...formData, status: status as any })}
+                    onClick={() => setFormData({ ...formData, status: status as Campaign["status"] })}
                     className={`flex-1 rounded-xl border py-2 text-sm font-medium transition ${formData.status === status
                       ? "border-accent-primary bg-accent-primary/10 text-accent-primary"
                       : "border-white/10 bg-surface-2 text-text-secondary hover:bg-surface-3"

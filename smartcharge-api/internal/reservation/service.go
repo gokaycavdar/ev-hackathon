@@ -126,6 +126,23 @@ func (s *Service) Create(ctx context.Context, userID int32, req CreateReservatio
 		return nil, apperrors.NewNotFoundError("Station")
 	}
 
+	// Duplicate reservation check: prevent same user from booking same station+date+hour
+	existingCount, err := s.queries.HasActiveReservation(ctx, generated.HasActiveReservationParams{
+		UserID:    userID,
+		StationID: req.StationID,
+		Column3: pgtype.Date{
+			Time:  reservationDate,
+			Valid: true,
+		},
+		Hour: req.Hour,
+	})
+	if err != nil {
+		return nil, apperrors.ErrInternal
+	}
+	if existingCount > 0 {
+		return nil, apperrors.NewConflictError("Bu saat diliminde zaten bir rezervasyonunuz var")
+	}
+
 	activeCount, err := s.queries.CountActiveReservations(ctx, generated.CountActiveReservationsParams{
 		StationID: req.StationID,
 		Column2: pgtype.Date{

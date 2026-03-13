@@ -46,6 +46,8 @@ type StationDetailResponse struct {
 	Price          float64          `json:"price"`
 	Density        int32            `json:"density"`
 	DensityProfile string           `json:"densityProfile"`
+	AverageRating  float64          `json:"averageRating"`
+	ReviewCount    int32            `json:"reviewCount"`
 	Slots          []TimeSlot       `json:"slots"`
 	ActiveCampaign *CampaignSummary `json:"activeCampaign"`
 }

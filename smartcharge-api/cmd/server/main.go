@@ -24,6 +24,7 @@ import (
 	"smartcharge-api/internal/operator"
 	"smartcharge-api/internal/recommend"
 	"smartcharge-api/internal/reservation"
+	"smartcharge-api/internal/review"
 	"smartcharge-api/internal/station"
 	"smartcharge-api/internal/user"
 )
@@ -73,9 +74,12 @@ func main() {
 	rlScorer := recommend.NewRLScorer(queries)
 	recommendService := recommend.NewService(queries, rlScorer)
 
+	// Review service
+	reviewService := review.NewService(queries)
+
 	// ── Handlers ──────────────────────────────────────────
 	authHandler := auth.NewHandler(authService)
-	stationHandler := station.NewHandler(stationService, recommendService)
+	stationHandler := station.NewHandler(stationService, recommendService, queries)
 	reservationHandler := reservation.NewHandler(reservationService)
 	userHandler := user.NewHandler(userService)
 	badgeHandler := badge.NewHandler(badgeService)
@@ -83,6 +87,7 @@ func main() {
 	operatorHandler := operator.NewHandler(operatorService)
 	chatHandler := chat.NewHandler(chatService)
 	demoUserHandler := demouser.NewHandler(queries)
+	reviewHandler := review.NewHandler(reviewService)
 
 	// ── Router ────────────────────────────────────────────
 	router := gin.Default()
@@ -103,6 +108,7 @@ func main() {
 	operatorHandler.RegisterRoutes(v1, authMiddleware)
 	chatHandler.RegisterRoutes(v1)
 	demoUserHandler.RegisterRoutes(v1)
+	reviewHandler.RegisterRoutes(v1, authMiddleware)
 
 	// Health check
 	router.GET("/health", func(c *gin.Context) {

@@ -125,18 +125,25 @@ func (s *Service) GetProfile(ctx context.Context, userID int32) (*ProfileRespons
 		reservationItems[i] = item
 	}
 
+	// Fetch reviewed reservation IDs
+	reviewedIDs, err := s.queries.GetUserReviewedReservationIDs(ctx, userID)
+	if err != nil {
+		reviewedIDs = []int32{}
+	}
+
 	return &ProfileResponse{
-		ID:           user.ID,
-		Name:         user.Name,
-		Email:        user.Email,
-		Role:         user.Role,
-		Coins:        user.Coins,
-		Co2Saved:     user.Co2Saved,
-		XP:           user.Xp,
-		Badges:       badgeItems,
-		AllBadges:    allBadgeItems,
-		Stations:     stationItems,
-		Reservations: reservationItems,
+		ID:                     user.ID,
+		Name:                   user.Name,
+		Email:                  user.Email,
+		Role:                   user.Role,
+		Coins:                  user.Coins,
+		Co2Saved:               user.Co2Saved,
+		XP:                     user.Xp,
+		Badges:                 badgeItems,
+		AllBadges:              allBadgeItems,
+		Stations:               stationItems,
+		Reservations:           reservationItems,
+		ReviewedReservationIDs: reviewedIDs,
 	}, nil
 }
 

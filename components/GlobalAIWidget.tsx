@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Zap, X, MapPin, ArrowRight, Sparkles, Clock, BatteryCharging, Coins, ExternalLink, TrendingDown, Gift, Award } from "lucide-react";
 import { authFetch, unwrapResponse, getStoredUserId, getToken } from "@/lib/auth";
@@ -74,7 +74,6 @@ export default function GlobalAIWidget() {
   const [aiMessage, setAiMessage] = useState<string>("");
   const [rlRecs, setRlRecs] = useState<ScoredStation[]>([]);
   const [rlStations, setRlStations] = useState<Record<number, { name: string; lat: number; lng: number; price: number; address?: string }>>({});
-  const [algorithm, setAlgorithm] = useState<string>("");
 
   // Common state
   const [isLoading, setIsLoading] = useState(false);
@@ -111,84 +110,88 @@ export default function GlobalAIWidget() {
   }, []);
 
   // Modal açıldığında verileri yükle
+  const loadModalData = useCallback(() => {
+    setIsLoading(true);
+    setSuccessMsg(null);
+
+    // Her iki tab için verileri paralel yükle
+    Promise.all([
+      // Tab 1: Forecast verileri
+      authFetch("/api/stations/forecast").then(res => res.json()),
+      // Tab 2: Personalized kampanyalar + AI öneriler
+      authFetch("/api/campaigns/for-user").then(res => res.json()).catch(() => ({ success: false })),
+      // AI/RL önerileri (chat endpoint)
+      fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "En iyi istasyonları öner" })
+      }).then(res => res.json()).catch(() => ({ success: false })),
+      // RL Scored stations
+      authFetch(`/api/stations/recommend?limit=5${geo.lat != null && geo.lng != null ? `&lat=${geo.lat}&lng=${geo.lng}` : ""}`).then(res => res.json()).catch(() => ({ success: false })),
+      // All stations for RL mapping
+      authFetch("/api/stations").then(res => res.json()).catch(() => ({ success: false }))
+    ])
+      .then(([forecastData, campaignData, chatData, rlData, stationsData]) => {
+        // Tab 1: En düşük yoğunluklu 3 istasyonu al
+        if (forecastData.success && forecastData.data?.forecasts) {
+          setCurrentTime(forecastData.data.currentTime);
+          const topRecs = forecastData.data.forecasts.slice(0, 3).map((f: { stationId: number; stationName: string; lat: number; lng: number; price: number; address: string; predictedLoad: number; hour: number }) => {
+            const isGreen = f.hour >= 23 || f.hour <= 6;
+            return {
+              stationId: f.stationId,
+              stationName: f.stationName,
+              lat: f.lat,
+              lng: f.lng,
+              price: f.price,
+              address: f.address,
+              predictedLoad: f.predictedLoad,
+              slot: `${f.hour.toString().padStart(2, "0")}:00 - ${((f.hour + 1) % 24).toString().padStart(2, "0")}:00`,
+              coins: isGreen ? 50 : 10,
+            };
+          });
+          setForecastRecs(topRecs);
+        }
+
+        // Tab 2: Kampanyalar (double-wrapped: data.campaigns)
+        if (campaignData.success && campaignData.data) {
+          setCampaigns(campaignData.data.campaigns || []);
+          setUserBadges(campaignData.data.userBadges || []);
+        }
+
+        // Tab 2: AI/RL Önerileri
+        if (chatData.success && chatData.data?.recommendations) {
+          setAiRecs(chatData.data.recommendations);
+          setAiMessage(chatData.data.content || "");
+        }
+
+        // Tab 2: RL Scored Stations
+        if (rlData.success && rlData.data?.results) {
+          setRlRecs(rlData.data.results || []);
+        }
+
+        // Stations for RL mapping
+        if (stationsData.success && Array.isArray(stationsData.data)) {
+          const stationMap: Record<number, { name: string; lat: number; lng: number; price: number; address?: string }> = {};
+          stationsData.data.forEach((s: { id: number; name: string; lat: number; lng: number; price: number; address?: string }) => {
+            stationMap[s.id] = { name: s.name, lat: s.lat, lng: s.lng, price: s.price, address: s.address };
+          });
+          setRlStations(stationMap);
+        }
+
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch data", err);
+        setIsLoading(false);
+      });
+  }, [geo.lat, geo.lng]);
+
   useEffect(() => {
     if (isOpen) {
-      setIsLoading(true);
-      setSuccessMsg(null);
-
-      // Her iki tab için verileri paralel yükle
-      Promise.all([
-        // Tab 1: Forecast verileri
-        authFetch("/api/stations/forecast").then(res => res.json()),
-        // Tab 2: Personalized kampanyalar + AI öneriler
-        authFetch("/api/campaigns/for-user").then(res => res.json()).catch(() => ({ success: false })),
-        // AI/RL önerileri (chat endpoint)
-        fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: "En iyi istasyonları öner" })
-        }).then(res => res.json()).catch(() => ({ success: false })),
-        // RL Scored stations
-        authFetch(`/api/stations/recommend?limit=5${geo.lat != null && geo.lng != null ? `&lat=${geo.lat}&lng=${geo.lng}` : ""}`).then(res => res.json()).catch(() => ({ success: false })),
-        // All stations for RL mapping
-        authFetch("/api/stations").then(res => res.json()).catch(() => ({ success: false }))
-      ])
-        .then(([forecastData, campaignData, chatData, rlData, stationsData]) => {
-          // Tab 1: En düşük yoğunluklu 3 istasyonu al
-          if (forecastData.success && forecastData.data?.forecasts) {
-            setCurrentTime(forecastData.data.currentTime);
-            const topRecs = forecastData.data.forecasts.slice(0, 3).map((f: any, idx: number) => {
-              const isGreen = f.hour >= 23 || f.hour <= 6;
-              return {
-                stationId: f.stationId,
-                stationName: f.stationName,
-                lat: f.lat,
-                lng: f.lng,
-                price: f.price,
-                address: f.address,
-                predictedLoad: f.predictedLoad,
-                slot: `${f.hour.toString().padStart(2, "0")}:00 - ${((f.hour + 1) % 24).toString().padStart(2, "0")}:00`,
-                coins: isGreen ? 50 : 10,
-              };
-            });
-            setForecastRecs(topRecs);
-          }
-
-          // Tab 2: Kampanyalar (double-wrapped: data.campaigns)
-          if (campaignData.success && campaignData.data) {
-            setCampaigns(campaignData.data.campaigns || []);
-            setUserBadges(campaignData.data.userBadges || []);
-          }
-
-          // Tab 2: AI/RL Önerileri
-          if (chatData.success && chatData.data?.recommendations) {
-            setAiRecs(chatData.data.recommendations);
-            setAiMessage(chatData.data.content || "");
-          }
-
-          // Tab 2: RL Scored Stations
-          if (rlData.success && rlData.data?.results) {
-            setRlRecs(rlData.data.results || []);
-            setAlgorithm(rlData.data.algorithm || "");
-          }
-
-          // Stations for RL mapping
-          if (stationsData.success && Array.isArray(stationsData.data)) {
-            const stationMap: Record<number, { name: string; lat: number; lng: number; price: number; address?: string }> = {};
-            stationsData.data.forEach((s: any) => {
-              stationMap[s.id] = { name: s.name, lat: s.lat, lng: s.lng, price: s.price, address: s.address };
-            });
-            setRlStations(stationMap);
-          }
-
-          setIsLoading(false);
-        })
-        .catch((err) => {
-          console.error("Failed to fetch data", err);
-          setIsLoading(false);
-        });
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on modal open, setState in .then() callback
+      loadModalData();
     }
-  }, [isOpen]);
+  }, [isOpen, loadModalData]);
 
   const handleInspect = (stationId: number) => {
     setIsOpen(false);
@@ -489,7 +492,7 @@ export default function GlobalAIWidget() {
                       <div className="mb-4 p-4 rounded-xl bg-purple-500/10 border border-purple-500/20">
                         <div className="flex items-center gap-2 text-purple-400 text-sm">
                           <Sparkles className="h-4 w-4" />
-                          <span className="font-medium">RL Puanlama - {algorithm} algoritması</span>
+                          <span className="font-medium">Akıllı Puanlama</span>
                         </div>
                       </div>
 
@@ -499,9 +502,17 @@ export default function GlobalAIWidget() {
                           const station = rlStations[stationId];
                           const score = Math.round(rec.score ?? rec.Score ?? 0);
                           const components = rec.components ?? rec.Components ?? {};
-                          const loadScore = Math.round(components.load ?? components.Load ?? 0);
-                          const greenScore = Math.round(components.green ?? components.Green ?? 0);
-                          const rlBonus = components.rl_bonus ?? components.q_value ?? 0;
+                          const loadVal = Math.round(components.load ?? components.Load ?? 0);
+                          const greenVal = Math.round(components.green ?? components.Green ?? 0);
+                          const distVal = Math.round(components.distance ?? components.Distance ?? 0);
+                          const priceVal = Math.round(components.price ?? components.Price ?? 0);
+                          
+                          const metrics = [
+                            { label: "Yoğunluk", value: loadVal, icon: "🏭" },
+                            { label: "Yeşil Enerji", value: greenVal, icon: "🌿" },
+                            { label: "Yakınlık", value: distVal, icon: "📍" },
+                            { label: "Fiyat", value: priceVal, icon: "💰" },
+                          ];
                           
                           return (
                             <div
@@ -523,21 +534,19 @@ export default function GlobalAIWidget() {
                                 <h3 className="text-xl font-bold text-white mb-1">{station?.name || `İstasyon #${stationId}`}</h3>
                                 <p className="text-sm text-slate-400 mb-4">{rec.explanation ?? rec.Explanation}</p>
 
-                                <div className="space-y-2 mb-4">
-                                  <div className="flex items-center justify-between text-sm">
-                                    <span className="text-slate-400">Yoğunluk</span>
-                                    <span className="font-medium text-white">{loadScore}</span>
-                                  </div>
-                                  <div className="flex items-center justify-between text-sm">
-                                    <span className="text-slate-400">Yeşil</span>
-                                    <span className="font-medium text-white">{greenScore}</span>
-                                  </div>
-                                  {rlBonus > 0 && (
-                                    <div className="flex items-center justify-between text-sm">
-                                      <span className="text-purple-400">RL Bonus</span>
-                                      <span className="font-medium text-purple-300">+{Math.round(rlBonus)}</span>
-                                    </div>
-                                  )}
+                                <div className="space-y-1.5 mb-4">
+                                  {metrics.map(({ label, value, icon }) => {
+                                    const barColor = value >= 60 ? "bg-green-500/70" : value >= 30 ? "bg-yellow-500/70" : "bg-red-500/50";
+                                    return (
+                                      <div key={label} className="flex items-center gap-2">
+                                        <span className="text-xs w-4">{icon}</span>
+                                        <span className="text-xs text-slate-400 w-20 shrink-0">{label}</span>
+                                        <div className="flex-1 h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                                          <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               </div>
 

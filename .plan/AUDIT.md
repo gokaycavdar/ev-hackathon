@@ -1,6 +1,6 @@
 # SmartCharge - Codebase Audit Report
 
-> Last updated: 2026-03-05
+> Last updated: 2026-03-13
 > Scope: Full codebase audit -- security, functional gaps, dead code, data integrity
 
 ---
@@ -50,7 +50,7 @@ All 8 findings below were fixed in Phase 5. Migration `000003_badge_engine` appl
 **What was built (by external contributor):**
 - `internal/recommend/` package: `Scorer` interface, `RLScorer` (Q-learning)
 - `GET /v1/stations/recommend` endpoint wired into `station.Handler`
-- Composite scoring: load (40%) + distance (20%) + green (25%) + price (15%)
+- Composite scoring: load (35%) + green (25%) + distance (20%) + price (15%) + RL bonus (5% max, currently always 0)
 - Haversine distance calculation
 - Frontend `GlobalAIWidget.tsx` rewritten to display RL-scored results
 
@@ -180,3 +180,19 @@ xp = 100 (always, per completed reservation)
 | Badges progress JSON parse error (Bug 3) | **[FIXED]** | Docker container rebuilt with Phase 5 badge progress endpoint |
 | Badges UI missing criteria/conditions (Bug 4) | **[FIXED]** | Wallet badges tab rewritten: criteria labels, progress bars for all badges, fraction display |
 | RL day-of-week mismatch (Sunday=0 vs Monday=0) | **[FIXED]** | `rl.go:55`: `(int(Weekday()) + 6) % 7` aligns Go convention with seed data |
+
+---
+
+## 9. Security Hardening (Phase 10A)
+
+### Verdict: ALL CRITICAL + HIGH SECURITY FIXES APPLIED (2026-03-13)
+
+| Finding | Severity | Status | Fix |
+|---------|----------|--------|-----|
+| C1: Role escalation via `RegisterRequest.Role` | CRITICAL | **[FIXED]** | Removed `Role` field from DTO; role always server-determined (DRIVER default + operator domain auto-detection) |
+| C3/C5: Operator station update/delete no ownership check | CRITICAL | **[FIXED]** | `UpdateStation` and `DeleteStation` verify `OwnerID.Int32 == ownerID` from JWT |
+| C4: Campaign update/delete no ownership check | CRITICAL | **[FIXED]** | `Update` and `Delete` verify `existing.OwnerID == ownerID` from JWT |
+| C6: JWT secret weak default `"default-dev-secret"` | CRITICAL | **[FIXED]** | Default removed; startup panics if `JWT_SECRET` empty in `GIN_MODE=release`; warning in debug |
+| H3: Docker container runs as root | HIGH | **[FIXED]** | Dockerfile adds `appuser:appgroup`, runs as non-root |
+| H6: Duplicate reservation possible (same user+station+date+hour) | HIGH | **[FIXED]** | `HasActiveReservation` SQLC query checks before create; returns 409 CONFLICT |
+| M1: bcrypt cost 10 (should be 12) | MEDIUM | **[FIXED]** | Cost increased to 12 in `auth/service.go` |

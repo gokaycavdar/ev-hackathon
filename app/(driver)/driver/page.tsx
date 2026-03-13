@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Leaf, Loader2, Zap, X, PartyPopper, Megaphone, Sparkles, MapPin, ArrowRight } from "lucide-react";
+import { Leaf, Loader2, Zap, X, PartyPopper, Megaphone, Sparkles, MapPin, ArrowRight, Star, MessageSquare } from "lucide-react";
 import type { StationMarker } from "@/components/Map";
 import { authFetch, unwrapResponse, getStoredUserId, getToken, setStoredUserId } from "@/lib/auth";
 import { useGeolocation } from "@/lib/useGeolocation";
@@ -37,6 +37,20 @@ type ScoredStation = {
   explanation: string;
 };
 
+type StationReview = {
+  id: number;
+  userId: number;
+  userName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+};
+
+type ReviewSummary = {
+  averageRating: number;
+  reviewCount: number;
+};
+
 export default function DriverDashboardPage() {
   return (
     <Suspense fallback={<div className="flex h-screen items-center justify-center bg-slate-700 text-white">Yükleniyor...</div>}>
@@ -57,6 +71,9 @@ function DriverDashboard() {
   const [filterMode, setFilterMode] = useState<"ALL" | "ECO">("ALL");
   const [aiRecs, setAiRecs] = useState<ScoredStation[]>([]);
   const [isLoadingRecs, setIsLoadingRecs] = useState(false);
+  const [stationReviews, setStationReviews] = useState<StationReview[]>([]);
+  const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
 
   const geo = useGeolocation();
 
@@ -119,12 +136,19 @@ function DriverDashboard() {
     setIsLoadingSlots(true);
     try {
       const response = await authFetch(`/api/stations/${station.id}`);
-      const stationData = await unwrapResponse<{ slots: Slot[] }>(response);
+      const stationData = await unwrapResponse<{ slots: Slot[]; averageRating?: number; reviewCount?: number }>(response);
       const fetchedSlots: Slot[] = (stationData.slots ?? []).map((s: Slot) => ({
         ...s,
         campaignApplied: s.campaignApplied ?? null,
       }));
       setSlots(fetchedSlots);
+      // Update review summary from station detail response
+      if (stationData.averageRating !== undefined && stationData.reviewCount !== undefined) {
+        setReviewSummary({
+          averageRating: stationData.averageRating,
+          reviewCount: stationData.reviewCount,
+        });
+      }
     } catch (error) {
       console.error("Slot fetch failed", error);
       setToast({ message: "Slot bilgisi alınamadı", detail: "Birazdan tekrar deneyin." });
@@ -153,15 +177,34 @@ function DriverDashboard() {
     }
   }, [geo.lat, geo.lng]);
 
+  const fetchReviews = useCallback(async (stationId: number) => {
+    setIsLoadingReviews(true);
+    try {
+      const response = await authFetch(`/api/stations/${stationId}/reviews?limit=5`);
+      const data = await response.json();
+      if (data.success && data.data) {
+        setStationReviews(data.data.reviews || []);
+        setReviewSummary(data.data.summary || null);
+      }
+    } catch (error) {
+      console.error("Reviews fetch failed", error);
+    } finally {
+      setIsLoadingReviews(false);
+    }
+  }, []);
+
   const handleStationSelect = useCallback((station: StationMarker) => {
     setSelectedStation(station);
     // Automatically open details when selected from map popup or sidebar
     setIsDetailsOpen(true);
     setSlots([]);
     setAiRecs([]);
+    setStationReviews([]);
+    setReviewSummary(null);
     void fetchSlots(station);
     void fetchRecommendations();
-  }, [fetchSlots, fetchRecommendations]);
+    void fetchReviews(station.id);
+  }, [fetchSlots, fetchRecommendations, fetchReviews]);
 
   useEffect(() => {
     if (stationIdParam && stations.length > 0) {
@@ -323,8 +366,17 @@ function DriverDashboard() {
                       {selectedStation.status === "RED" ? "Yüksek Yoğunluk" : 
                        selectedStation.status === "YELLOW" ? "Orta Yoğunluk" : "Düşük Yoğunluk"}
                     </span>
-                    <span>•</span>
-                    <span>{selectedStation.price.toFixed(2)} ₺/kWh</span>
+                    <span>&#183;</span>
+                    <span>{selectedStation.price.toFixed(2)} TL/kWh</span>
+                    {reviewSummary && reviewSummary.reviewCount > 0 && (
+                      <>
+                        <span>&#183;</span>
+                        <span className="flex items-center gap-1">
+                          <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+                          {reviewSummary.averageRating.toFixed(1)} ({reviewSummary.reviewCount})
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -470,7 +522,7 @@ function DriverDashboard() {
                   {isLoadingRecs ? (
                     <div className="flex flex-col items-center justify-center gap-3 py-6 text-slate-400">
                       <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
-                      <p className="text-xs">AI analiz yapiliyor...</p>
+                      <p className="text-xs">AI analiz yapılıyor...</p>
                     </div>
                   ) : (selectedStation.load || 0) >= 70 ? (
                     // High Density Warning + AI Alternative
@@ -478,15 +530,15 @@ function DriverDashboard() {
                       <div className="mb-4 flex items-start gap-3 text-orange-200 bg-orange-500/10 p-3 rounded-xl border border-orange-500/20">
                         <Megaphone className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
                         <div>
-                          <p className="text-sm font-bold text-orange-400">Bu istasyon su an cok yogun.</p>
-                          <p className="text-xs mt-1 opacity-80">Bekleme suresi normalden uzun olabilir.</p>
+                         <p className="text-sm font-bold text-orange-400">Bu istasyon şu an çok yoğun.</p>
+                         <p className="text-xs mt-1 opacity-80">Bekleme süresi normalden uzun olabilir.</p>
                         </div>
                       </div>
                       
                       {aiRecommendation ? (
                         <>
                           <p className="text-xs text-slate-400 leading-relaxed mb-3">
-                            AI skoruna gore size daha uygun olan istasyon:
+                            AI skoruna göre size daha uygun olan istasyon:
                           </p>
                           <div
                             onClick={() => {
@@ -526,20 +578,33 @@ function DriverDashboard() {
                           {/* Score breakdown for recommended station */}
                           {aiRecommendation.scored.components && (
                             <div className="mt-3 space-y-1.5">
-                              {Object.entries(aiRecommendation.scored.components).filter(([key]) => ["load","green","distance","price"].includes(key)).map(([key, val]) => (
-                                <div key={key} className="flex items-center gap-2">
-                                  <span className="text-[10px] text-slate-500 w-14 shrink-0 capitalize">{key === "load" ? "Yuk" : key === "green" ? "Yesil" : key === "distance" ? "Mesafe" : key === "price" ? "Fiyat" : key}</span>
-                                  <div className="flex-1 h-1.5 rounded-full bg-slate-700 overflow-hidden">
-                                    <div className="h-full rounded-full bg-purple-500/60" style={{ width: `${Math.min(100, Math.max(0, (val ?? 0)))}%` }} />
-                                  </div>
-                                  <span className="text-[10px] text-slate-400 w-6 text-right">{Math.round(val ?? 0)}</span>
-                                </div>
-                              ))}
+                              {(() => {
+                                const c = aiRecommendation.scored.components;
+                                const items = [
+                                  { key: "load", label: "Yoğunluk", value: c.load ?? c.Load ?? 0, icon: "🏭", goodHigh: true },
+                                  { key: "green", label: "Yeşil Enerji", value: c.green ?? c.Green ?? 0, icon: "🌿", goodHigh: true },
+                                  { key: "distance", label: "Yakınlık", value: c.distance ?? c.Distance ?? 0, icon: "📍", goodHigh: true },
+                                  { key: "price", label: "Uygun Fiyat", value: c.price ?? c.Price ?? 0, icon: "💰", goodHigh: true },
+                                ];
+                                return items.map(({ key, label, value, icon }) => {
+                                  const v = Math.round(value);
+                                  const barColor = v >= 60 ? "bg-green-500/70" : v >= 30 ? "bg-yellow-500/70" : "bg-red-500/50";
+                                  return (
+                                    <div key={key} className="flex items-center gap-2">
+                                      <span className="text-[10px] w-3">{icon}</span>
+                                      <span className="text-[10px] text-slate-400 w-20 shrink-0">{label}</span>
+                                      <div className="flex-1 h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                                        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, Math.max(0, v))}%` }} />
+                                      </div>
+                                    </div>
+                                  );
+                                });
+                              })()}
                             </div>
                           )}
                         </>
                       ) : (
-                        <p className="text-xs text-slate-400">Su an icin daha iyi bir alternatif bulunamadi.</p>
+                        <p className="text-xs text-slate-400">Şu an için daha iyi bir alternatif bulunamadı.</p>
                       )}
                     </div>
                   ) : currentStationScore ? (
@@ -557,22 +622,35 @@ function DriverDashboard() {
                       {/* Score component breakdown */}
                       {currentStationScore.components && (
                         <div className="mb-4 space-y-1.5">
-                          {Object.entries(currentStationScore.components).filter(([key]) => ["load","green","distance","price"].includes(key)).map(([key, val]) => (
-                            <div key={key} className="flex items-center gap-2">
-                              <span className="text-[10px] text-slate-500 w-14 shrink-0 capitalize">{key === "load" ? "Yuk" : key === "green" ? "Yesil" : key === "distance" ? "Mesafe" : key === "price" ? "Fiyat" : key}</span>
-                              <div className="flex-1 h-1.5 rounded-full bg-slate-700 overflow-hidden">
-                                <div className="h-full rounded-full bg-purple-500/60" style={{ width: `${Math.min(100, Math.max(0, val))}%` }} />
-                              </div>
-                              <span className="text-[10px] text-slate-400 w-6 text-right">{Math.round(val)}</span>
-                            </div>
-                          ))}
+                          {(() => {
+                            const c = currentStationScore.components;
+                            const items = [
+                              { key: "load", label: "Yoğunluk", value: c.load ?? c.Load ?? 0, icon: "🏭" },
+                              { key: "green", label: "Yeşil Enerji", value: c.green ?? c.Green ?? 0, icon: "🌿" },
+                              { key: "distance", label: "Yakınlık", value: c.distance ?? c.Distance ?? 0, icon: "📍" },
+                              { key: "price", label: "Uygun Fiyat", value: c.price ?? c.Price ?? 0, icon: "💰" },
+                            ];
+                            return items.map(({ key, label, value, icon }) => {
+                              const v = Math.round(value);
+                              const barColor = v >= 60 ? "bg-green-500/70" : v >= 30 ? "bg-yellow-500/70" : "bg-red-500/50";
+                              return (
+                                <div key={key} className="flex items-center gap-2">
+                                  <span className="text-[10px] w-3">{icon}</span>
+                                  <span className="text-[10px] text-slate-400 w-20 shrink-0">{label}</span>
+                                  <div className="flex-1 h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                                    <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, Math.max(0, v))}%` }} />
+                                  </div>
+                                </div>
+                              );
+                            });
+                          })()}
                         </div>
                       )}
 
                       {slots.find(s => s.isGreen) ? (
                         <>
-                          <p className="mb-3 text-xs text-slate-300 leading-relaxed">
-                            Saat <span className="text-green-400 font-bold">{slots.find(s => s.isGreen)?.label.split(" - ")[0]}</span> icin Eco Slot rezervasyonu yaparsan <span className="text-yellow-400 font-bold">{slots.find(s => s.isGreen)?.coins} Coin</span> kazanabilirsin.
+                       <p className="mb-3 text-xs text-slate-300 leading-relaxed">
+                            Saat <span className="text-green-400 font-bold">{slots.find(s => s.isGreen)?.label.split(" - ")[0]}</span> için Eco Slot rezervasyonu yaparsan <span className="text-yellow-400 font-bold">{slots.find(s => s.isGreen)?.coins} Coin</span> kazanabilirsin.
                           </p>
                           <button 
                             onClick={() => {
@@ -611,7 +689,7 @@ function DriverDashboard() {
                     // Selected station not in top results -- suggest the best one
                     <div className="animate-in fade-in duration-300">
                       <p className="mb-3 text-xs text-slate-400 leading-relaxed">
-                        AI analizine gore su an en uygun istasyon:
+                        AI analizine göre şu an en uygun istasyon:
                       </p>
                       <div
                         onClick={() => {
@@ -639,23 +717,81 @@ function DriverDashboard() {
                       {/* Score breakdown */}
                       {aiRecommendation.scored.components && (
                         <div className="mt-3 space-y-1.5">
-                          {Object.entries(aiRecommendation.scored.components).filter(([key]) => ["load","green","distance","price"].includes(key)).map(([key, val]) => (
-                            <div key={key} className="flex items-center gap-2">
-                              <span className="text-[10px] text-slate-500 w-14 shrink-0 capitalize">{key === "load" ? "Yuk" : key === "green" ? "Yesil" : key === "distance" ? "Mesafe" : key === "price" ? "Fiyat" : key}</span>
-                              <div className="flex-1 h-1.5 rounded-full bg-slate-700 overflow-hidden">
-                                <div className="h-full rounded-full bg-purple-500/60" style={{ width: `${Math.min(100, Math.max(0, (val ?? 0)))}%` }} />
-                              </div>
-                              <span className="text-[10px] text-slate-400 w-6 text-right">{Math.round(val ?? 0)}</span>
-                            </div>
-                          ))}
+                          {(() => {
+                            const c = aiRecommendation.scored.components;
+                            const items = [
+                              { key: "load", label: "Yoğunluk", value: c.load ?? c.Load ?? 0, icon: "🏭" },
+                              { key: "green", label: "Yeşil Enerji", value: c.green ?? c.Green ?? 0, icon: "🌿" },
+                              { key: "distance", label: "Yakınlık", value: c.distance ?? c.Distance ?? 0, icon: "📍" },
+                              { key: "price", label: "Uygun Fiyat", value: c.price ?? c.Price ?? 0, icon: "💰" },
+                            ];
+                            return items.map(({ key, label, value, icon }) => {
+                              const v = Math.round(value);
+                              const barColor = v >= 60 ? "bg-green-500/70" : v >= 30 ? "bg-yellow-500/70" : "bg-red-500/50";
+                              return (
+                                <div key={key} className="flex items-center gap-2">
+                                  <span className="text-[10px] w-3">{icon}</span>
+                                  <span className="text-[10px] text-slate-400 w-20 shrink-0">{label}</span>
+                                  <div className="flex-1 h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                                    <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, Math.max(0, v))}%` }} />
+                                  </div>
+                                </div>
+                              );
+                            });
+                          })()}
                         </div>
                       )}
                     </div>
                   ) : (
-                    <p className="text-sm text-slate-400">Su an icin ozel bir oneri bulunmuyor.</p>
+                    <p className="text-sm text-slate-400">Şu an için özel bir öneri bulunmuyor.</p>
                   )}
                 </div>
 
+                {/* Station Reviews Section */}
+                <div className="rounded-2xl border border-slate-700/50 bg-slate-800/30 p-5 shrink-0">
+                  <div className="mb-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-300">
+                      <MessageSquare className="h-4 w-4" />
+                      <span className="text-sm font-bold">Değerlendirmeler</span>
+                    </div>
+                    {reviewSummary && reviewSummary.reviewCount > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <span className="text-sm font-bold text-white">{reviewSummary.averageRating.toFixed(1)}</span>
+                        <span className="text-xs text-slate-500">({reviewSummary.reviewCount})</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {isLoadingReviews ? (
+                    <div className="flex items-center justify-center py-4 text-slate-400">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    </div>
+                  ) : stationReviews.length === 0 ? (
+                    <p className="text-xs text-slate-500 text-center py-3">Henüz değerlendirme yapılmamış.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {stationReviews.map((review) => (
+                        <div key={review.id} className="rounded-xl bg-slate-800/60 p-3 border border-slate-700/30">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-xs font-medium text-slate-300">{review.userName}</span>
+                            <div className="flex items-center gap-0.5">
+                              {[1,2,3,4,5].map((s) => (
+                                <Star key={s} className={`h-3 w-3 ${s <= review.rating ? "fill-yellow-400 text-yellow-400" : "text-slate-600"}`} />
+                              ))}
+                            </div>
+                          </div>
+                          {review.comment && (
+                            <p className="text-xs text-slate-400 leading-relaxed">{review.comment}</p>
+                          )}
+                          <p className="text-[10px] text-slate-600 mt-1.5">
+                            {new Date(review.createdAt).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
               </div>
             </div>

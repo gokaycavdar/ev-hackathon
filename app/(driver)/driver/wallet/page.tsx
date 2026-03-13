@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Award, Coins, Leaf, Loader2, MapPin, Sparkles, Trophy, Users, Zap } from "lucide-react";
+import { ArrowLeft, Award, Coins, Leaf, Loader2, Sparkles, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 import { authFetch, unwrapResponse, getStoredUserId } from "@/lib/auth";
 import { useGeolocation } from "@/lib/useGeolocation";
@@ -376,11 +376,11 @@ export default function DriverWalletPage() {
 										badgeProgress.map((bp) => {
 											const progressPercent = bp.threshold > 0 ? Math.min(100, Math.round((bp.currentCount / bp.threshold) * 100)) : 0;
 											const criteriaLabels: Record<string, string> = {
-												night_charges: "Gece saatlerinde (23:00-06:00) sarj",
-												green_charges: "Yesil enerji slotlarinda sarj",
-												weekend_charges: "Hafta sonu sarj",
-												morning_charges: "Sabah saatlerinde (06:00-09:00) sarj",
-												intercity_charges: "Sehirlerarasi istasyonlarda sarj",
+											night_charges: "Gece saatlerinde (23:00-06:00) şarj",
+												green_charges: "Yeşil enerji slotlarında şarj",
+												weekend_charges: "Hafta sonu şarj",
+												morning_charges: "Sabah saatlerinde (06:00-09:00) şarj",
+												intercity_charges: "Şehirlerarası istasyonlarda şarj",
 											};
 											const criteriaText = criteriaLabels[bp.metric] || bp.description;
 											return (
@@ -409,7 +409,7 @@ export default function DriverWalletPage() {
 														{/* Criteria / condition */}
 														<div className="mt-3 rounded-xl bg-surface-2/60 px-4 py-2.5">
 															<p className="text-xs font-medium text-text-tertiary">
-																Kosul: <span className="text-text-secondary">{bp.threshold}x {criteriaText}</span>
+																Koşul: <span className="text-text-secondary">{bp.threshold}x {criteriaText}</span>
 															</p>
 														</div>
 
@@ -425,11 +425,11 @@ export default function DriverWalletPage() {
 															</div>
 															<div className="mt-1.5 flex items-center justify-between">
 																<p className={`text-xs font-medium ${bp.earned ? "text-green-400" : "text-text-tertiary"}`}>
-																	{bp.earned ? `${bp.threshold}/${bp.threshold}` : `${bp.currentCount}/${bp.threshold}`} tamamlandi
+																	{bp.earned ? `${bp.threshold}/${bp.threshold}` : `${bp.currentCount}/${bp.threshold}`} tamamlandı
 																</p>
 																{bp.earned ? (
 																	<span className="inline-flex items-center gap-1 text-xs font-medium text-green-400">
-																		Kazanildi
+																		Kazanıldı
 																		{bp.earnedAt && (
 																			<span className="text-green-500/60">
 																				({new Date(bp.earnedAt).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })})
@@ -553,7 +553,7 @@ export default function DriverWalletPage() {
 												<p>Öneriler yüklenemedi.</p>
 											</div>
 										) : (
-											<div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-purple-500/30 scrollbar-track-transparent">
+										<div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-purple-500/30 scrollbar-track-transparent">
 												{recommendations.map((rec, i) => {
 													const stationId = (rec.stationId ?? rec.StationID ?? 0);
 													const station = recommendationStations[stationId];
@@ -563,6 +563,13 @@ export default function DriverWalletPage() {
 													const greenScore = Math.round(components.green ?? components.Green ?? 0);
 													const distanceScore = Math.round(components.distance ?? 0);
 													const priceScore = Math.round(components.price ?? components.Price ?? 0);
+													
+													const metrics = [
+														{ label: "Yoğunluk", value: loadScore, icon: "🏭" },
+														{ label: "Yeşil Enerji", value: greenScore, icon: "🌿" },
+														{ label: "Yakınlık", value: distanceScore, icon: "📍" },
+														{ label: "Uygun Fiyat", value: priceScore, icon: "💰" },
+													];
 													
 													return (
 														<div 
@@ -593,23 +600,20 @@ export default function DriverWalletPage() {
 																{rec.explanation || rec.Explanation}
 															</p>
 
-															{/* Score bars */}
-															<div className="space-y-2 mb-4">
-																{[
-																	{ label: "Yoğunluk", value: loadScore, color: "bg-blue-500", icon: <Zap className="h-3 w-3 text-blue-400" /> },
-																	{ label: "Yeşil", value: greenScore, color: "bg-green-500", icon: <Leaf className="h-3 w-3 text-green-400" /> },
-																	{ label: "Mesafe", value: distanceScore, color: "bg-cyan-500", icon: <MapPin className="h-3 w-3 text-cyan-400" /> },
-																	{ label: "Fiyat", value: priceScore, color: "bg-yellow-500", icon: <Coins className="h-3 w-3 text-yellow-400" /> },
-																].map(({ label, value, color, icon }) => (
-																	<div key={label} className="flex items-center gap-2">
-																		{icon}
-																		<span className="text-[10px] text-text-tertiary w-14 shrink-0">{label}</span>
-																		<div className="flex-1 h-1.5 rounded-full bg-surface-2 overflow-hidden">
-																			<div className={`h-full rounded-full ${color}/60`} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
+															{/* Score bars - friendly format */}
+															<div className="space-y-1.5 mb-4">
+																{metrics.map(({ label, value, icon }) => {
+																	const barColor = value >= 60 ? "bg-green-500/70" : value >= 30 ? "bg-yellow-500/70" : "bg-red-500/50";
+																	return (
+																		<div key={label} className="flex items-center gap-2">
+																			<span className="text-xs w-4">{icon}</span>
+																			<span className="text-[10px] text-text-tertiary w-20 shrink-0">{label}</span>
+																			<div className="flex-1 h-1.5 rounded-full bg-surface-2 overflow-hidden">
+																				<div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
+																			</div>
 																		</div>
-																		<span className="text-[10px] text-text-secondary w-6 text-right font-medium">{value}</span>
-																	</div>
-																))}
+																	);
+																})}
 															</div>
 
 															{/* Price */}

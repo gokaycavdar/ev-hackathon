@@ -26,6 +26,7 @@ export function useGeolocation(): GeolocationState {
 
   useEffect(() => {
     if (!navigator.geolocation) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- fallback runs once on mount, no cascade risk
       setState({
         lat: DEFAULT_CENTER.lat,
         lng: DEFAULT_CENTER.lng,

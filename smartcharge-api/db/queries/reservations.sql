@@ -62,3 +62,11 @@ WHERE station_id = $1
   AND date::date = $2::date
   AND hour = $3
   AND status NOT IN ('CANCELLED', 'FAILED');
+
+-- name: HasActiveReservation :one
+SELECT COUNT(*)::int FROM reservations
+WHERE user_id = $1
+  AND station_id = $2
+  AND date::date = $3::date
+  AND hour = $4
+  AND status NOT IN ('CANCELLED', 'FAILED', 'COMPLETED');

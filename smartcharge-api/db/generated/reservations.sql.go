@@ -231,6 +231,34 @@ func (q *Queries) GetStationRevenue(ctx context.Context, stationID int32) (float
 	return revenue, err
 }
 
+const hasActiveReservation = `-- name: HasActiveReservation :one
+SELECT COUNT(*)::int FROM reservations
+WHERE user_id = $1
+  AND station_id = $2
+  AND date::date = $3::date
+  AND hour = $4
+  AND status NOT IN ('CANCELLED', 'FAILED', 'COMPLETED')
+`
+
+type HasActiveReservationParams struct {
+	UserID    int32       `json:"user_id"`
+	StationID int32       `json:"station_id"`
+	Column3   pgtype.Date `json:"column_3"`
+	Hour      string      `json:"hour"`
+}
+
+func (q *Queries) HasActiveReservation(ctx context.Context, arg HasActiveReservationParams) (int32, error) {
+	row := q.db.QueryRow(ctx, hasActiveReservation,
+		arg.UserID,
+		arg.StationID,
+		arg.Column3,
+		arg.Hour,
+	)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const listReservationsByStation = `-- name: ListReservationsByStation :many
 SELECT id, user_id, station_id, date, hour, is_green, earned_coins, saved_co2, status, created_at, updated_at, confirmed_at, started_at, completed_at FROM reservations
 WHERE station_id = $1

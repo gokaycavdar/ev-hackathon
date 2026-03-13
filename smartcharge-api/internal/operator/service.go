@@ -132,11 +132,17 @@ func (s *Service) CreateStation(ctx context.Context, ownerID int32, req CreateSt
 }
 
 // UpdateStation updates an operator's station.
-func (s *Service) UpdateStation(ctx context.Context, stationID int32, req UpdateStationRequest) (*StationResponse, error) {
+// Verifies that the station belongs to the requesting operator.
+func (s *Service) UpdateStation(ctx context.Context, ownerID int32, stationID int32, req UpdateStationRequest) (*StationResponse, error) {
 	// Verify station exists
 	existing, err := s.queries.GetStationByID(ctx, stationID)
 	if err != nil {
 		return nil, apperrors.NewNotFoundError("Station")
+	}
+
+	// Ownership check
+	if !existing.OwnerID.Valid || existing.OwnerID.Int32 != ownerID {
+		return nil, apperrors.NewForbiddenError("Bu istasyon size ait degil")
 	}
 
 	// Build update params with fallback to existing values
@@ -181,10 +187,16 @@ func (s *Service) UpdateStation(ctx context.Context, stationID int32, req Update
 }
 
 // DeleteStation deletes an operator's station.
-func (s *Service) DeleteStation(ctx context.Context, stationID int32) error {
-	_, err := s.queries.GetStationByID(ctx, stationID)
+// Verifies that the station belongs to the requesting operator.
+func (s *Service) DeleteStation(ctx context.Context, ownerID int32, stationID int32) error {
+	existing, err := s.queries.GetStationByID(ctx, stationID)
 	if err != nil {
 		return apperrors.NewNotFoundError("Station")
+	}
+
+	// Ownership check
+	if !existing.OwnerID.Valid || existing.OwnerID.Int32 != ownerID {
+		return apperrors.NewForbiddenError("Bu istasyon size ait degil")
 	}
 
 	if err := s.queries.DeleteStation(ctx, stationID); err != nil {
