@@ -1,0 +1,42 @@
+name: Deploy to Heroku
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-backend:
+    name: Deploy Go API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build, Push and Release API (Docker)
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        run: |
+          cd smartcharge-api
+          # Login to Heroku Container registry
+          heroku container:login
+          # Build and push the Docker image
+          heroku container:push web -a smartcharge-api-gc
+          # Release the newly pushed image
+          heroku container:release web -a smartcharge-api-gc
+
+  deploy-frontend:
+    name: Deploy Next.js Web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Commit history is needed to push to Heroku Git
+          
+      - name: Deploy Frontend to Heroku via Git
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        run: |
+          # Add Heroku git remote with API Key for authentication
+          git remote add heroku https://heroku:$HEROKU_API_KEY@git.heroku.com/smartcharge-web-gc.git
+          # Push the main branch to Heroku
+          git push heroku main:main -f
